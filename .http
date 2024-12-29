@@ -1,0 +1,47 @@
+1. curl -X POST "http://localhost:8080/createLeagues" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "team1": 1,
+           "team2": 2,
+           "match_id": "YOUR_MATCH_ID"
+         }'
+
+2. curl -X POST "http://localhost:8080/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_name": "John Doe",
+    "password": "password"
+  }'
+
+3. curl -X GET "http://localhost:8080/profile" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzU1NzcwMTAsInVzZXJfaWQiOjF9.c2lbaUi0SdbowxfCrXDKh472j2xcf-PGbgbJ1aNGlzs"
+
+
+  4. curl -X POST "http://localhost:8080/register?league_id=1XNblEnb" \
+     -H "Authorization: Bearer 
+       eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzU1ODkzMjIsInVzZXJfaWQiOjF9.pOfLnBeKXdrJabu0zkDlB80xofqfxHSdJRj66DL-BAs"
+
+
+5. curl -X POST "http://localhost:8080/trade/transaction?league_id=1XNblEnb&player_id=7&transaction_type=buy" \
+  -H "Authorization: Bearer 
+    eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzU1ODkzMjIsInVzZXJfaWQiOjF9.pOfLnBeKXdrJabu0zkDlB80xofqfxHSdJRj66DL-BAs" \
+  -H "Content-Type: application/json" \
+  -d '{
+     "shares": 1
+      }'
+
+6. curl -X POST "http://localhost:8080/trade/transaction?league_id=1XNblEnb&player_id=7&transaction_type=buy" \
+  -H "Authorization: Bearer 
+    eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzU1ODkzMjIsInVzZXJfaWQiOjF9.pOfLnBeKXdrJabu0zkDlB80xofqfxHSdJRj66DL-BAs" \
+  -H "Content-Type: application/json" \
+  -d '{
+     "shares": 1
+      }'
+
+7. curl -X GET "http://localhost:8080/portfolio?league_id=1XNblEnb" \
+-H "Authorization: Bearer 
+    eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzU1ODkzMjIsInVzZXJfaWQiOjF9.pOfLnBeKXdrJabu0zkDlB80xofqfxHSdJRj66DL-BAs"
+
+
+
+
