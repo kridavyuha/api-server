@@ -1,15 +1,16 @@
 -- So i am going with this architectural decision of creating new table for each league if it can be deleted after the contest.
 
 
--- Create playters table
--- load all these players data even before tournment
+-- Create players table
+-- load all these players data even before tournament
 -- so that we can assign base_prices as well in prior.
 -- As we only open the league to users after toss, we just fetch the squad from the 
 -- api and add them to players and base price and recreate the leagues (RARE case)...
 CREATE TABLE IF NOT EXISTS players (
     player_id VARCHAR(6) PRIMARY KEY,
     player_name VARCHAR(255),
-    team VARCHAR(255)
+    team VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -36,28 +37,28 @@ CREATE TABLE leagues (
     capacity INT,
     registered INT DEFAULT 0,
     users_registered TEXT,
-    league_status VARCHAR(15) DEFAULT 'not started' CHECK (league_status IN ('active', 'completed', 'not started'))
+    league_status VARCHAR(15) DEFAULT 'upcoming' CHECK (league_status IN ('waiting', 'active', 'completed', 'upcoming'))
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    -- wait_time defines the maximum duration the league will be in 'waiting' state after which it should go to `active` state -
+    -- and should not allow any more registrations once it crosses the `waiting` state.
+    -- duration in seconds
+    wait_time INT DEFAULT 180
 );
 
-ALTER TABLE leagues
-ALTER COLUMN users_registered SET DATA TYPE INT[] USING string_to_array(users_registered, ',')::INT[];
-
-ALTER TABLE leagues
-ALTER COLUMN users_registered SET DATA TYPE TEXT USING array_to_string(users_registered, ',');
-
--- once this table is create we also create a points_{} table to track the cur_price.
+-- once this table is created we also create a points_{} table to track the cur_price.
 -- so here we call squads api once to get the player id's belonging to those teams and get their respective base prices.
 
 
 -- Create points table with league_id (Not to be created)
 -- TODO: Add a foriegn key player_id to players table.
 
-CREATE TABLE players_{league_name} (
-    player_id SERIAL PRIMARY KEY,
-    base_price INT,
-    cur_price INT,
-    last_change VARCHAR(3) CHECK (last_change IN ('pos', 'neg', 'neu')),
-);
+-- This table gets created automatically, don't create it
+-- CREATE TABLE players_{league_name} (
+--     player_id SERIAL PRIMARY KEY,
+--     base_price INT,
+--     cur_price INT,
+--     last_change VARCHAR(3) CHECK (last_change IN ('pos', 'neg', 'neu')),
+-- );
 
 
 
@@ -66,10 +67,11 @@ CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
     user_name VARCHAR(50),
     mail_id VARCHAR(100),
-    profile_pic VARCHAR(100)
+    profile_pic VARCHAR(100),
+    password VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-ALTER TABLE users
-ADD COLUMN password VARCHAR(255);
+
 -- Insert a new user into the users table
 INSERT INTO users (user_name, mail_id, profile_pic, password) 
 VALUES ('John Doe', 'john.doe@example.com', 'profile_pic_url', 'password');
@@ -79,7 +81,7 @@ VALUES ('John Doe', 'john.doe@example.com', 'profile_pic_url', 'password');
 CREATE TABLE purse (
     user_id INT,
     league_id VARCHAR(100),
-    remaining_purse INT,
+    remaining_purse INT DEFAULT 10000,
     PRIMARY KEY (user_id, league_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (league_id) REFERENCES leagues(league_id)
