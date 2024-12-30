@@ -391,6 +391,53 @@ func (app *App) RegisterLeague(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func (app *App) StartLeague(w http.ResponseWriter, r *http.Request) {
+	leagueID := r.URL.Query().Get("league_id")
+	if leagueID == "" {
+		http.Error(w, "league_id is required", http.StatusBadRequest)
+		return
+	}
+
+	// Update the league status to 'started'
+	err := app.DB.Exec("UPDATE leagues SET league_status = 'opened' WHERE league_id = ?", leagueID).Error
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte("League opened successfully"))
+	w.WriteHeader(http.StatusOK)
+}
+
+func (app *App) StartMatch(w http.ResponseWriter, r *http.Request) {
+	leagueID := r.URL.Query().Get("league_id")
+	if leagueID == "" {
+		http.Error(w, "league_id is required", http.StatusBadRequest)
+		return
+	}
+	var matchID string
+	err := app.DB.Raw("SELECT match_id FROM leagues WHERE league_id = ?", leagueID).Scan(&matchID).Error
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Make a Get Request to endpoint http://localhost:8081/scores?match_id={match_id} to get the scores of the match
+	resp, err := http.Get("http://localhost:8081/scores?match_id=" + matchID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, "Failed to trigger webhook", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte("Match started"))
+
+}
+
 func generateLeagueID() string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	rand.Seed(uint64(time.Now().UnixNano()))
