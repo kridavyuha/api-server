@@ -350,9 +350,9 @@ func (app *App) RegisterLeague(w http.ResponseWriter, r *http.Request) {
 	// Get the capacity and registered count from the leagues table
 	// Order the struct fields in an optimal way to avoid padding
 	var result struct {
-		RegisteredUsers string `gorm:"column:users_registered"`
-		Capacity        int    `gorm:"column:capacity"`
-		Registered      int    `gorm:"column:registered"`
+		RegisteredUsers string `json:"users_registered"`
+		Capacity        int    `json:"capacity"`
+		Registered      int    `json:"registered"`
 	}
 	err := app.DB.Raw("SELECT users_registered, capacity, registered FROM leagues WHERE league_id = ?", leagueID).Scan(&result).Error
 	if err != nil {
@@ -381,7 +381,7 @@ func (app *App) RegisterLeague(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Also add the user to the purse table
-	err = app.DB.Exec("INSERT INTO purse (user_id, league_id, balance) VALUES (?, ?, ?)", userID, leagueID, 10000).Error
+	err = app.DB.Exec("INSERT INTO purse (user_id, league_id) VALUES (?, ?)", userID, leagueID).Error
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

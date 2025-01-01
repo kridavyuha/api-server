@@ -8,9 +8,9 @@
 -- api and add them to players and base price and recreate the leagues (RARE case)...
 CREATE TABLE IF NOT EXISTS players (
     player_id VARCHAR(6) PRIMARY KEY,
-    player_name VARCHAR(255),
-    team VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    player_name VARCHAR(255) NOT NULL,
+    team VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS players (
 -- This has to be done even before the match.
 Create Table base_price (
     player_id VARCHAR(6) PRIMARY KEY,
-    base_price INT,
+    base_price INT NOT NULL,
     FOREIGN KEY (player_id) REFERENCES players(player_id)
 );
 
@@ -32,13 +32,13 @@ Create Table base_price (
 -- users_registered is a comma separated user_ids...
 CREATE TABLE leagues (
     league_id VARCHAR(100) PRIMARY KEY,
-    match_id VARCHAR(50),
-    entry_fee INT,
-    capacity INT,
+    match_id VARCHAR(50) NOT NULL,
+    entry_fee INT NOT NULL,
+    capacity INT NOT NULL DEFAULT 100,
     registered INT DEFAULT 0,
-    users_registered TEXT,
-    league_status VARCHAR(15) DEFAULT 'upcoming' CHECK (league_status IN ('active', 'completed', 'upcoming'))
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    users_registered TEXT DEFAULT '',
+    league_status VARCHAR(15) DEFAULT 'upcoming' CHECK (league_status IN ('active', 'completed', 'upcoming')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- once this table is created we also create a points_{} table to track the cur_price.
@@ -61,11 +61,11 @@ CREATE TABLE leagues (
 -- Create Users table 
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
-    user_name VARCHAR(50),
-    mail_id VARCHAR(100),
+    user_name VARCHAR(50) NOT NULL,
+    mail_id VARCHAR(100) NOT NULL,
     profile_pic VARCHAR(100),
-    password VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Insert a new user into the users table
@@ -75,8 +75,8 @@ VALUES ('John Doe', 'john.doe@example.com', 'profile_pic_url', 'password');
 
 -- Create Purse table to store the remaining purse for each user in each league.
 CREATE TABLE purse (
-    user_id INT,
-    league_id VARCHAR(100),
+    user_id INT NOT NULL,
+    league_id VARCHAR(100) NOT NULL,
     remaining_purse INT DEFAULT 10000,
     PRIMARY KEY (user_id, league_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id),
@@ -84,11 +84,11 @@ CREATE TABLE purse (
 );
 
 CREATE TABLE portfolio (
-    user_id INT,
-    league_id VARCHAR(100),
-    player_id VARCHAR(6),
-    shares INT,
-    PRIMARY KEY (user_id, league_id, player_id),
+    user_id INT NOT NULL,
+    league_id VARCHAR(100) NOT NULL,
+    player_id VARCHAR(6) NOT NULL,
+    shares INT DEFAULT 0,
+    PRIMARY KEY (user_id, league_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (player_id) REFERENCES players(player_id)
@@ -98,13 +98,13 @@ CREATE TABLE portfolio (
 -- Create a table to store the transactions of the users.
 -- As this is a bit rarely acccessed table, we can keep it in the same table.
 Create Table transactions (
-    user_id INT,
-    league_id VARCHAR(100),
-    player_id VARCHAR(6),
-    shares INT,
-    price INT,
+    user_id INT NOT NULL,
+    league_id VARCHAR(100) NOT NULL,
+    player_id VARCHAR(6) NOT NULL,
+    shares INT NOT NULL,
+    price INT NOT NULL,
     transaction_type VARCHAR(10) CHECK (transaction_type IN ('buy', 'sell')),
-    transaction_time TIMESTAMP,
+    transaction_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (player_id) REFERENCES players(player_id)

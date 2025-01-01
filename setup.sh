@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Create volume for PostgreSQL database
+mkdir -p $(shell pwd)/volume
+
 # Stop and remove existing PostgreSQL container
 
 make stop_db
