@@ -121,3 +121,11 @@ func (r Redis) DECR(key string) (int64, error) {
 	}
 	return val, nil
 }
+
+func (r Redis) LRem(key string, count int64, value interface{}) error {
+	err := r.client.LRem(ctx, key, count, value).Err()
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -143,11 +143,6 @@ func (app *App) TransactPlayers(w http.ResponseWriter, r *http.Request) {
 
 	// Add this purchase to redis queue : so there is a record of all the transactions
 	// There should be a process monitoring this queue and updating the player's price in the player table
-	key := "transactions_" + leagueId + "_" + playerId
-	if transactionType == "buy" {
-		app.KVStore.INCR(key)
-	} else if transactionType == "sell" {
-		app.KVStore.DECR(key)
-	}
+	// As we thought theprice of a player stocks will be updated on every transaction No need of maintianing the counter then.
 
 }

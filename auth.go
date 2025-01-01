@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -57,14 +58,25 @@ func (app *App) ValidateToken(tokenString string) (int, error) {
 
 }
 
-func (app *App) RevokeToken(tokenString string) error {
+func (app *App) RevokeToken(userId int, tokenString string) error {
 	// Implement token revocation logic here
 	// Even if someone gets this token, it will be invalid after this
-	err := app.KVStore.Set("blacklisted_"+tokenString, true)
+	// Get the list of tokens for this user
+	tokens, err := app.KVStore.LRange("session_token_"+fmt.Sprintf("%d", userId), 0, -1)
 	if err != nil {
 		return err
 	}
 
+	// Remove the token from the list
+	for _, t := range tokens {
+		if t == tokenString {
+			err = app.KVStore.LRem("session_token_"+fmt.Sprintf("%d", userId), 1, t)
+			if err != nil {
+				return err
+			}
+			break
+		}
+	}
 	// For example, maintaining a blacklist of revoked tokens
 	return nil
 }
@@ -101,6 +113,13 @@ func (app *App) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Generate a JWT token
 	token, err := app.GenerateToken(user.UserID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	//Insert the token into the KV store {List of tokens for a user: Multiple devices}
+	err = app.KVStore.RPush("session_token_"+fmt.Sprintf("%d", user.UserID), token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -157,13 +176,19 @@ func (app *App) Logout(w http.ResponseWriter, r *http.Request) {
 	// Perform logout logic here
 	// Extract the token from the request body
 
+	userId, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
 	token, ok := r.Context().Value("token").(string)
 	if !ok {
 		http.Error(w, "Invalid token", http.StatusBadRequest)
 		return
 	}
 	// Revoke the token
-	err := app.RevokeToken(token)
+	err := app.RevokeToken(userId, token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -26,6 +26,28 @@ func (app *App) Middleware(next http.Handler) http.HandlerFunc {
 		userID, err := app.ValidateToken(token)
 		fmt.Println("UserID:", userID)
 		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		// Check this token from the whitelist
+		// If the token is not in the whitelist, return an error
+		// This is to ensure that the token is not revoked
+		tokens, err := app.KVStore.LRange("session_token_"+fmt.Sprintf("%d", userID), 0, -1)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		found := false
+		for _, t := range tokens {
+			if t == token {
+				found = true
+				break
+			}
+		}
+
+		if !found {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
