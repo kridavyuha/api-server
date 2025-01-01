@@ -348,44 +348,31 @@ func (app *App) RegisterLeague(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(int)
 
 	// Get the capacity and registered count from the leagues table
+	// Order the struct fields in an optimal way to avoid padding
 	var result struct {
-		Capacity        int
-		Registered      int
-		RegisteredUsers string
+		RegisteredUsers string `json:"users_registered"`
+		Capacity        int    `json:"capacity"`
+		Registered      int    `json:"registered"`
 	}
-	err := app.DB.Raw("SELECT capacity, registered, users_registered FROM leagues WHERE league_id = ?", leagueID).Scan(&result).Error
-	capacity := result.Capacity
-	registered := result.Registered
+	err := app.DB.Raw("SELECT users_registered, capacity, registered FROM leagues WHERE league_id = ?", leagueID).Scan(&result).Error
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	capacity := result.Capacity
+	registered := result.Registered
 
 	// Check if the league is full
 	if registered == capacity {
-		http.Error(w, "League is full", http.StatusBadRequest)
+		http.Error(w, "League is full, cannot join now", http.StatusBadRequest)
 		return
 	}
 
-	// Extract the comma-separated values in result.RegisteredUsers into a list
-	var registeredUsers []string
-	if result.RegisteredUsers == "" {
-		registeredUsers = []string{}
-	} else {
-		registeredUsers = strings.Split(result.RegisteredUsers, ",")
-	}
-	// append the new user to the list
-	registeredUsers = append(registeredUsers, fmt.Sprintf("%d", userID))
-
-	// convert the list back to a comma-separated string
-	var newRegisteredUsers string
-	if len(registeredUsers) == 1 {
-		newRegisteredUsers = registeredUsers[0]
-	} else {
-		newRegisteredUsers = strings.Join(registeredUsers, ",")
-	}
+	// Add the user to the users_registered list
+	newRegisteredUsers := strings.TrimPrefix(result.RegisteredUsers+fmt.Sprintf(",%d", userID), ",")
 	registered++
 
+	// TODO: @anveshreddy18 : Need to relook on whether to update the league_status here or where the league is started.
 	// Update the users_registered,registered column in the leagues table
 	err = app.DB.Exec("UPDATE leagues SET registered = ?, users_registered = ? WHERE league_id = ?", registered, newRegisteredUsers, leagueID).Error
 	if err != nil {
@@ -394,7 +381,7 @@ func (app *App) RegisterLeague(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Also add the user to the purse table
-	err = app.DB.Exec("INSERT INTO purse (user_id, league_id, balance) VALUES (?, ?, ?)", userID, leagueID, 10000).Error
+	err = app.DB.Exec("INSERT INTO purse (user_id, league_id) VALUES (?, ?)", userID, leagueID).Error
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

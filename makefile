@@ -1,5 +1,4 @@
-VOLUME_PATH=/Users/rithvik/Documents/Strategic\ Fantasy\ League/App/backend/volumes
-
+VOLUME_PATH=$(shell pwd)/volume
 
 start_db:
 	docker run --name db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
