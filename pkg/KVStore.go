@@ -13,4 +13,5 @@ type KVStore interface {
 	LRange(key string, start, stop int64) ([]string, error)
 	INCR(key string) (int64, error)
 	DECR(key string) (int64, error)
+	LRem(key string, count int64, value interface{}) error
 }
