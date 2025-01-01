@@ -350,14 +350,11 @@ func (app *App) RegisterLeague(w http.ResponseWriter, r *http.Request) {
 	// Get the capacity and registered count from the leagues table
 	// Order the struct fields in an optimal way to avoid padding
 	var result struct {
-		RegisteredUsers string    `gorm:"column:users_registered"`
-		leagueStatus    string    `gorm:"column:league_status"`
-		createdAt       time.Time `gorm:"column:created_at"`
-		Capacity        int       `gorm:"column:capacity"`
-		Registered      int       `gorm:"column:registered"`
-		waitTime        int       `gorm:"column:wait_time"`
+		RegisteredUsers string `gorm:"column:users_registered"`
+		Capacity        int    `gorm:"column:capacity"`
+		Registered      int    `gorm:"column:registered"`
 	}
-	err := app.DB.Raw("SELECT capacity, registered, users_registered, league_status, created_at, wait_time FROM leagues WHERE league_id = ?", leagueID).Scan(&result).Error
+	err := app.DB.Raw("SELECT users_registered, capacity, registered FROM leagues WHERE league_id = ?", leagueID).Scan(&result).Error
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -365,14 +362,14 @@ func (app *App) RegisterLeague(w http.ResponseWriter, r *http.Request) {
 	capacity := result.Capacity
 	registered := result.Registered
 
-	// Check if the league is full and/or if the leage is no longer accepting registrations
-	if registered == capacity || result.leagueStatus != "waiting" || time.Now().Sub(result.createdAt).Seconds() > float64(result.waitTime) {
-		http.Error(w, "League has started, cannot join now", http.StatusBadRequest)
+	// Check if the league is full
+	if registered == capacity {
+		http.Error(w, "League is full, cannot join now", http.StatusBadRequest)
 		return
 	}
 
 	// Add the user to the users_registered list
-	newRegisteredUsers := result.RegisteredUsers + fmt.Sprintf(",%d", userID)
+	newRegisteredUsers := strings.TrimPrefix(result.RegisteredUsers+fmt.Sprintf(",%d", userID), ",")
 	registered++
 
 	// TODO: @anveshreddy18 : Need to relook on whether to update the league_status here or where the league is started.

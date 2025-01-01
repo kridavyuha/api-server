@@ -37,12 +37,8 @@ CREATE TABLE leagues (
     capacity INT,
     registered INT DEFAULT 0,
     users_registered TEXT,
-    league_status VARCHAR(15) DEFAULT 'upcoming' CHECK (league_status IN ('waiting', 'active', 'completed', 'upcoming'))
+    league_status VARCHAR(15) DEFAULT 'upcoming' CHECK (league_status IN ('active', 'completed', 'upcoming'))
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    -- wait_time defines the maximum duration the league will be in 'waiting' state after which it should go to `active` state -
-    -- and should not allow any more registrations once it crosses the `waiting` state.
-    -- duration in seconds
-    wait_time INT DEFAULT 180
 );
 
 -- once this table is created we also create a points_{} table to track the cur_price.
