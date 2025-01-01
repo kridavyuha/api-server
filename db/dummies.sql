@@ -12,33 +12,64 @@ CREATE TABLE IF NOT EXISTS players (
 -- Team paths: CSK/, KKR/
 
 -- CSK Players
-INSERT INTO players (player_name, team, year, league, profile_pic) VALUES
-('AM Rahane', 'CSK', 2023, 'IPL', 'CSK/AM_Rahane.png'),
-('DP Conway', 'CSK', 2023, 'IPL', 'CSK/DP_Conway.png'),
-('RD Gaikwad', 'CSK', 2023, 'IPL', 'CSK/RD_Gaikwad.png'),
-('MS Dhoni', 'CSK', 2023, 'IPL', 'CSK/MS_Dhoni.png'),
-('RA Jadeja', 'CSK', 2023, 'IPL', 'CSK/RA_Jadeja.png'),
-('MM Ali', 'CSK', 2023, 'IPL', 'CSK/MM_Ali.png'),
-('S Dube', 'CSK', 2023, 'IPL', 'CSK/S_Dube.png'),
-('TU Deshpande', 'CSK', 2023, 'IPL', 'CSK/TU_Deshpande.png'),
-('Akash Singh', 'CSK', 2023, 'IPL', 'CSK/Akash_Singh.png'),
-('M Pathirana', 'CSK', 2023, 'IPL', 'CSK/M_Pathirana.png'),
-('M Theekshana', 'CSK', 2023, 'IPL', 'CSK/M_Theekshana.png');
+INSERT INTO players (player_id, player_name, team) VALUES
+('0', 'AM Rahane', 'CSK'),
+('1', 'DP Conway', 'CSK'),
+('2', 'RD Gaikwad', 'CSK'),
+('3', 'MS Dhoni', 'CSK'),
+('4', 'RA Jadeja', 'CSK'),
+('5', 'MM Ali', 'CSK'),
+('6', 'S Dube', 'CSK'),
+('7', 'TU Deshpande', 'CSK'),
+('8', 'Akash Singh', 'CSK'),
+('9', 'M Pathirana', 'CSK'),
+('10', 'M Theekshana', 'CSK');
 
 -- KKR Players
-INSERT INTO players (player_name, team, year, league, profile_pic) VALUES
-('AD Russell', 'KKR', 2023, 'IPL', 'KKR/AD_Russell.png'),
-('N Jagadeesan', 'KKR', 2023, 'IPL', 'KKR/N_Jagadeesan.png'),
-('RK Singh', 'KKR', 2023, 'IPL', 'KKR/RK_Singh.png'),
-('JJ Roy', 'KKR', 2023, 'IPL', 'KKR/JJ_Roy.png'),
-('CV Varun', 'KKR', 2023, 'IPL', 'KKR/CV_Varun.png'),
-('D Wiese', 'KKR', 2023, 'IPL', 'KKR/D_Wiese.png'),
-('K Khejroliya', 'KKR', 2023, 'IPL', 'KKR/K_Khejroliya.png'),
-('N Rana', 'KKR', 2023, 'IPL', 'KKR/N_Rana.png'),
-('SP Narine', 'KKR', 2023, 'IPL', 'KKR/SP_Narine.png'),
-('Suyash Sharma', 'KKR', 2023, 'IPL', 'KKR/Suyash_Sharma.png'),
-('VR Iyer', 'KKR', 2023, 'IPL', 'KKR/VR_Iyer.png'),
-('UT Yadav', 'KKR', 2023, 'IPL', 'KKR/UT_Yadav.png');
+INSERT INTO players (player_id, player_name, team) VALUES
+('11', 'AD Russell', 'KKR'),
+('12', 'N Jagadeesan', 'KKR'),
+('13', 'RK Singh', 'KKR'),
+('14', 'JJ Roy', 'KKR'),
+('15', 'CV Varun', 'KKR'),
+('16', 'D Wiese', 'KKR'),
+('17', 'K Khejroliya', 'KKR'),
+('18', 'N Rana', 'KKR'),
+('19', 'SP Narine', 'KKR'),
+('20', 'Suyash Sharma', 'KKR'),
+('21', 'VR Iyer', 'KKR'),
+('22', 'UT Yadav', 'KKR');
+
+-- base_price table
+CREATE TABLE IF NOT EXISTS base_price (
+    player_id INT PRIMARY KEY,
+    base_price INT
+);
+
+INSERT INTO base_price (player_id, base_price) VALUES
+('0', 1500),
+('1', 2000),
+('2', 1800),
+('3', 2200),
+('4', 1700),
+('5', 1600),
+('6', 2100),
+('7', 1900),
+('8', 1400),
+('9', 2300),
+('10', 2500),
+('11', 1200),
+('12', 1300),
+('13', 1100),
+('14', 2400),
+('15', 2000),
+('16', 1500),
+('17', 1800),
+('18', 1700),
+('19', 1600),
+('20', 2100),
+('21', 1900),
+('22', 1400);
 
 
 
