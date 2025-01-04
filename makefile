@@ -1,4 +1,4 @@
-VOLUME_PATH=/Users/rithvik/Documents/Strategic\ Fantasy\ League/App/backend/volumes
+VOLUME_PATH=/Users/rithvik/Documents/Strategic\ Fantasy\ League/App/backend/volume
 
 
 start_db:
