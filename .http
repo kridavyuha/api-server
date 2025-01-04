@@ -1,10 +1,10 @@
-1. curl -X POST "http://localhost:8080/createLeagues" \
+1. curl -X POST "http://localhost:8080/createLeague" \
      -H "Content-Type: application/json" \
      -d '{
-           "team1": 1,
-           "team2": 2,
-           "match_id": "YOUR_MATCH_ID"
-         }'
+           "entry_fee":100,
+           "capacity":100,
+           "match_id": "1359507"
+    }'
 
 2. curl -X POST "http://localhost:8080/login" \
   -H "Content-Type: application/json" \
