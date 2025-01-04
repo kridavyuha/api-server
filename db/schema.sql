@@ -113,3 +113,22 @@ Create Table transactions (
 );
 
 
+-- Add ON DELETE CASCADE to purse table
+ALTER TABLE purse
+DROP CONSTRAINT purse_league_id_fkey,
+ADD CONSTRAINT purse_league_id_fkey
+FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE;
+
+-- Add ON DELETE CASCADE to portfolio table
+ALTER TABLE portfolio
+DROP CONSTRAINT portfolio_league_id_fkey,
+ADD CONSTRAINT portfolio_league_id_fkey
+FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE;
+
+-- Add ON DELETE CASCADE to transactions table
+ALTER TABLE transactions
+DROP CONSTRAINT transactions_league_id_fkey,
+ADD CONSTRAINT transactions_league_id_fkey
+FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE;
+
+
