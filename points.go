@@ -38,25 +38,25 @@ func (app *App) PushPoints(w http.ResponseWriter, r *http.Request) {
 		// Match is completed, close the websocket connections
 		//TODO: render frontend accordingly once the match is completed
 		app.ClientsM.Lock()
-		for _, client := range app.WS {
-			err := client.Conn.WriteMessage(websocket.TextMessage, []byte("Match completed"))
+		for conn := range app.WS {
+			err := conn.WriteMessage(websocket.TextMessage, []byte("Match completed"))
 			if err != nil {
 				fmt.Println("Error writing to client:", err)
 			}
-			client.Conn.Close()
+			conn.Close()
 			// remove the client from the list
 		}
 		app.ClientsM.Unlock()
 	}
 
 	app.ClientsM.Lock()
-	for _, client := range app.WS {
+	for conn, val := range app.WS {
 		//TODO: can we implement this through go routines ?
 		// check the match_id with that of the client
-		if client.MatchID == ballDetails.MatchID {
-			err := client.Conn.WriteMessage(websocket.TextMessage, data)
+		if val.MatchID == ballDetails.MatchID {
+			err := conn.WriteMessage(websocket.TextMessage, data)
 			if err != nil {
-				client.Conn.Close()
+				conn.Close()
 			}
 		}
 	}

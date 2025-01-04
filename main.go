@@ -21,13 +21,12 @@ var upgrader = websocket.Upgrader{
 type WSDetails struct {
 	MatchID  string
 	LeagueID string
-	Conn     *websocket.Conn
 }
 
 type App struct {
 	DB       *gorm.DB
 	R        *chi.Mux
-	WS       []*WSDetails
+	WS       map[*websocket.Conn]WSDetails
 	ClientsM sync.Mutex
 	KVStore  KVStore.KVStore
 }
@@ -56,35 +55,18 @@ func (app *App) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		conn.Close()
 		app.ClientsM.Lock()
-		for i, ws := range app.WS {
-			if ws.Conn == conn {
-				app.WS = append(app.WS[:i], app.WS[i+1:]...)
-				break
-			}
-		}
+		delete(app.WS, conn)
 		app.ClientsM.Unlock()
 	}()
 
-	wsDetails := &WSDetails{
+	wsDetails := WSDetails{
 		MatchID:  matchID,
 		LeagueID: leagueID,
-		Conn:     conn,
 	}
 
 	app.ClientsM.Lock()
-	app.WS = append(app.WS, wsDetails)
+	app.WS[conn] = wsDetails
 	app.ClientsM.Unlock()
-
-	defer func() {
-		app.ClientsM.Lock()
-		for i, ws := range app.WS {
-			if ws.Conn == conn {
-				app.WS = append(app.WS[:i], app.WS[i+1:]...)
-				break
-			}
-		}
-		app.ClientsM.Unlock()
-	}()
 
 	for {
 		_, _, err := conn.ReadMessage()
