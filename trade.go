@@ -95,7 +95,7 @@ func (app *App) TransactPlayers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the user's balance
-	err = app.DB.Exec("UPDATE purse SET remaining_purse = ? WHERE user_id = ?", balance, userId).Error
+	err = app.DB.Exec("UPDATE purse SET remaining_purse = ? WHERE user_id = ? and league_id = ?", balance, userId, leagueId).Error
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -140,6 +140,14 @@ func (app *App) TransactPlayers(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	type respMssge struct {
+		Message string `json:"message"`
+	}
+
+	response := respMssge{Message: "Transaction successful"}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 
 	// Add this purchase to redis queue : so there is a record of all the transactions
 	// There should be a process monitoring this queue and updating the player's price in the player table

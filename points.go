@@ -120,6 +120,16 @@ func (app *App) GetPointsPlayerWise(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("Points for player:", playerID, "in league:", leagueID, "Points:", points)
+
 	// Return the points
-	json.NewEncoder(w).Encode(points)
+	type respMssge struct {
+		Points []string `json:"points"`
+	}
+
+	response := respMssge{
+		Points: points,
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
