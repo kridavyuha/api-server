@@ -11,8 +11,9 @@ import (
 )
 
 type BallByBall struct {
-	MatchID string         `json:"matchId"`
-	Player  map[string]int `json:"players"`
+	MatchID     string         `json:"matchId"`
+	Player      map[string]int `json:"players"`
+	IsCompleted bool           `json:"isCompleted"`
 }
 
 // We get the points from the generator and update the points in the DB
@@ -32,12 +33,31 @@ func (app *App) PushPoints(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check Match status:
+	if ballDetails.IsCompleted {
+		// Match is completed, close the websocket connections
+		//TODO: render frontend accordingly once the match is completed
+		app.ClientsM.Lock()
+		for conn := range app.WS {
+			err := conn.WriteMessage(websocket.TextMessage, []byte("Match completed"))
+			if err != nil {
+				fmt.Println("Error writing to client:", err)
+			}
+			conn.Close()
+			// remove the client from the list
+		}
+		app.ClientsM.Unlock()
+	}
+
 	app.ClientsM.Lock()
-	for _, client := range app.Clients {
+	for conn, val := range app.WS {
 		//TODO: can we implement this through go routines ?
-		err := client.WriteMessage(websocket.TextMessage, data)
-		if err != nil {
-			client.Close()
+		// check the match_id with that of the client
+		if val.MatchID == ballDetails.MatchID {
+			err := conn.WriteMessage(websocket.TextMessage, data)
+			if err != nil {
+				conn.Close()
+			}
 		}
 	}
 	app.ClientsM.Unlock()
