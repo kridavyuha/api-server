@@ -19,18 +19,12 @@ type DetailedPortfolio struct {
 	Balance int         `json:"balance"`
 }
 
-func (app *App) GetPortfolio(w http.ResponseWriter, r *http.Request) {
-	leagueId := r.URL.Query().Get("league_id")
-	userId := r.Context().Value("user_id").(int)
-
-	fmt.Println("League ID:", leagueId, "User ID:", userId)
-
+func getUserPortfolio(app *App, leagueId string, userId int) (*DetailedPortfolio, error) {
 	// Get the portfolio of the user from the DB
 	var portfolio []Portfolio
 	tx := app.DB.Raw("SELECT player_id, shares FROM portfolio WHERE user_id = ? AND league_id = ?", userId, leagueId).Scan(&portfolio)
 	if tx.Error != nil {
-		http.Error(w, tx.Error.Error(), http.StatusInternalServerError)
-		return
+		return nil, tx.Error
 	}
 
 	// Using LeagueID and PlayerID, get the player name and current price
@@ -38,8 +32,7 @@ func (app *App) GetPortfolio(w http.ResponseWriter, r *http.Request) {
 		var curPrice int
 		tx = app.DB.Raw("SELECT cur_price FROM players_"+leagueId+" WHERE player_id = ?", player.PlayerId).Scan(&curPrice)
 		if tx.Error != nil {
-			http.Error(w, tx.Error.Error(), http.StatusInternalServerError)
-			return
+			return nil, tx.Error
 		}
 		var playerInfo struct {
 			PlayerName string
@@ -55,8 +48,7 @@ func (app *App) GetPortfolio(w http.ResponseWriter, r *http.Request) {
 	var balance int
 	tx = app.DB.Raw("SELECT remaining_purse FROM purse WHERE user_id = ? AND league_id = ?", userId, leagueId).Scan(&balance)
 	if tx.Error != nil {
-		http.Error(w, tx.Error.Error(), http.StatusInternalServerError)
-		return
+		return nil, tx.Error
 	}
 
 	// Prepare the response
@@ -64,8 +56,20 @@ func (app *App) GetPortfolio(w http.ResponseWriter, r *http.Request) {
 		Players: portfolio,
 		Balance: balance,
 	}
+	return &response, nil
+}
 
+func (app *App) GetPortfolio(w http.ResponseWriter, r *http.Request) {
+	leagueId := r.URL.Query().Get("league_id")
+	userId := r.Context().Value("user_id").(int)
+
+	fmt.Println("League ID:", leagueId, "User ID:", userId)
+
+	resp, err := getUserPortfolio(app, leagueId, userId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 	// Send the response
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(resp)
 }

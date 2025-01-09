@@ -25,6 +25,7 @@ func (app *App) initKVStore() {
 
 func (app *App) initHandlers() {
 	app.R.Get("/ws", app.handleWebSocket)
+	// Auth handlers
 	app.R.Post("/login", app.Login)
 	app.R.Post("/logout", app.Middleware(http.HandlerFunc(app.Logout)))
 	app.R.Post("/points", app.PushPoints)
@@ -42,5 +43,5 @@ func (app *App) initHandlers() {
 	app.R.Get("/profile", app.Middleware(http.HandlerFunc(app.GetProfile)))
 	app.R.Post("/trade/transaction", app.Middleware(http.HandlerFunc(app.TransactPlayers)))
 	app.R.Get("/portfolio", app.Middleware(http.HandlerFunc(app.GetPortfolio)))
-
+	app.R.Get("/getLeaderboard", app.Middleware(http.HandlerFunc(app.GetLeaderboard)))
 }

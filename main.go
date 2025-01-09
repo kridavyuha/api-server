@@ -78,13 +78,17 @@ func (app *App) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
+	// Create a new App instance
 	app := &App{}
 
+	// Initialize the database and cache
 	db, err := app.initDB()
 	if err != nil {
 		panic(err)
 	}
+	app.initKVStore()
 
+	// Create a new router
 	r := chi.NewRouter()
 	// CORS middleware configuration
 	r.Use(cors.New(cors.Options{
@@ -101,9 +105,10 @@ func main() {
 
 	// create a map relation btw  player name and player_id
 
+	// Initialize the request handlers
 	app.initHandlers()
-	app.initKVStore()
 
+	// Start the server
 	if err := http.ListenAndServe(":8080", r); err != nil {
 		panic(err)
 	}
