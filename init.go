@@ -28,17 +28,17 @@ func (app *App) initHandlers() {
 	app.R.Post("/login", app.Login)
 	app.R.Post("/logout", app.Middleware(http.HandlerFunc(app.Logout)))
 	app.R.Post("/points", app.PushPoints)
-	app.R.Post("/createLeague", app.CreateLeague)
-	app.R.Get("/getLeagues", app.Middleware(http.HandlerFunc(app.GetLeagues)))
+	app.R.Post("/leagues/create", app.Middleware(http.HandlerFunc(app.CreateLeague)))
+	app.R.Get("/leagues", app.Middleware(http.HandlerFunc(app.GetLeagues)))
 
-	app.R.Get("/players", app.Middleware(http.HandlerFunc(app.GetLeague)))
-	app.R.Delete("/deleteLeague", app.DeleteLeague)
-	app.R.Get("/points", app.Middleware(http.HandlerFunc(app.GetPointsPlayerWise)))
+	app.R.Get("/trade", app.Middleware(http.HandlerFunc(app.GetLeague)))
+	app.R.Get("/leagues/delete", app.Middleware(http.HandlerFunc(app.DeleteLeague)))
+	app.R.Get("/trade/points", app.Middleware(http.HandlerFunc(app.GetPointsPlayerWise)))
 	app.R.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello World"))
 	})
 
-	app.R.Post("/register", app.Middleware(http.HandlerFunc(app.RegisterLeague)))
+	app.R.Post("/leagues/register", app.Middleware(http.HandlerFunc(app.RegisterLeague)))
 	app.R.Get("/profile", app.Middleware(http.HandlerFunc(app.GetProfile)))
 	app.R.Post("/trade/transaction", app.Middleware(http.HandlerFunc(app.TransactPlayers)))
 	app.R.Get("/portfolio", app.Middleware(http.HandlerFunc(app.GetPortfolio)))

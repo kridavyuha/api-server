@@ -15,6 +15,12 @@ type Player struct {
 	PlayerName string `json:"player_name"`
 }
 
+type GetLeagueDetails struct {
+	LeagueID      string             `json:"league_id"`
+	MatchID       string             `json:"match_id"`
+	PlayerDetails []GetPlayerDetails `json:"player_details"`
+}
+
 type GetPlayerDetails struct {
 	PlayerID   string `json:"player_id"`
 	PlayerName string `json:"player_name"`
@@ -46,6 +52,10 @@ type Squad struct {
 type PlayerInSquad struct {
 	Name string `json:"name"`
 	Id   string `json:"id"`
+}
+
+type respMssge struct {
+	Message string `json:"message"`
 }
 
 func getPlayers(team string) ([]PlayerInSquad, error) {
@@ -190,7 +200,10 @@ func (app *App) CreateLeague(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Write([]byte(tableName))
+	response := respMssge{
+		Message: tableName,
+	}
+	json.NewEncoder(w).Encode(response)
 
 	w.WriteHeader(http.StatusCreated)
 }
@@ -249,6 +262,7 @@ func (app *App) GetLeagues(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println("Leagues after appending teams: ", leagues)
 	// return the leagues
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(leagues)
 
 }
@@ -318,8 +332,6 @@ func (app *App) DeleteLeague(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the match_id from the leagues table
-
 	// Delete the league from the leagues table
 	err := app.DB.Exec("DELETE FROM leagues WHERE league_id = ?", leagueID).Error
 	if err != nil {
@@ -328,13 +340,17 @@ func (app *App) DeleteLeague(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete the table_{match_id} from the database
-	err = app.DB.Exec("DROP TABLE " + leagueID).Error
+	err = app.DB.Exec("DROP TABLE players_" + leagueID).Error
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Write([]byte("League deleted successfully"))
+	response := respMssge{
+		Message: "League deleted successfully",
+	}
+
+	json.NewEncoder(w).Encode(response)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -381,14 +397,18 @@ func (app *App) RegisterLeague(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Also add the user to the purse table
-	err = app.DB.Exec("INSERT INTO purse (user_id, league_id) VALUES (?, ?)", userID, leagueID).Error
+	err = app.DB.Exec("INSERT INTO purse (user_id, league_id, remaining_purse) VALUES (?, ?, ?)", userID, leagueID, 10000).Error
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Write([]byte("User registered successfully"))
-	w.WriteHeader(http.StatusCreated)
+	response := respMssge{
+		Message: "Successfully registered",
+	}
+
+	json.NewEncoder(w).Encode(response)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (app *App) StartLeague(w http.ResponseWriter, r *http.Request) {

@@ -88,15 +88,13 @@ func (app *App) PushPoints(w http.ResponseWriter, r *http.Request) {
 
 	for _, league := range leagues {
 		for playerID, points := range ballDetails.Player {
-			key := league + "_" + playerID
-			fmt.Println("Key:", key, "Points:", points)
+			key := "graph_" + league + "_" + playerID
 			// This way if we miss any points in entry to redis cache , we may get wrong points while cal from prev points.
 			// DB points will be correct but redis cache points will be wrong.
-			// TODO: Can we have a cron job to update the redis cache points from DB points?
+			// TODO: Can we have a cron job to update the redis cache points from DB points? Seems like this whole job of running it ball by ball is heavy.
 			lastEntry, err := app.KVStore.LIndex(key, -1)
 			if err != nil {
 				fmt.Println("Error fetching last entry from redis cache for player:", playerID, "error:", err)
-
 			}
 
 			var lastPoints int
@@ -142,6 +140,16 @@ func (app *App) GetPointsPlayerWise(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("Points for player:", playerID, "in league:", leagueID, "Points:", points)
+
 	// Return the points
-	json.NewEncoder(w).Encode(points)
+	type respMssge struct {
+		Points []string `json:"points"`
+	}
+
+	response := respMssge{
+		Points: points,
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
