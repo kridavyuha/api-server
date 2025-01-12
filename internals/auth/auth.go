@@ -29,14 +29,17 @@ func (a *AuthService) Login(loginDetails LoginRequestBody) (string, error) {
 	password := loginDetails.Password
 
 	var user Users
+	fmt.Println("username", user.UserName, "password", user.Password, "user_id", user.UserID)
 
-	err := a.DB.Table("users").Select("user_name, password, user_id").Where("user_name = ?", username).Scan(&user).Error
+	err := a.DB.Table("users").Select("user_name, password, user_id").Where("user_name = ?", username).First(&user).Error
+
 	if err != nil {
 		return "", err
 	}
+	
 	// Verify the password
 	if user.Password != password {
-		return "", nil
+		return "", errors.New("invalid credentials")
 	}
 	// Generate a JWT token
 	token, err := a.GenerateToken(user.UserID)
