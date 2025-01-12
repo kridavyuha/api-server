@@ -14,15 +14,17 @@ func (app *App) initHandlers() {
 	app.R.Get("/leagues/delete", app.Middleware(http.HandlerFunc(app.DeleteLeague)))
 	app.R.Post("/leagues/register", app.Middleware(http.HandlerFunc(app.RegisterLeague)))
 
-	app.R.Post("/points", app.PushPoints)
-
-	app.R.Get("/trade", app.Middleware(http.HandlerFunc(app.GetLeague)))
+	app.R.Post("/trade/transaction", app.Middleware(http.HandlerFunc(app.TransactPlayers)))
+	app.R.Get("/trade", app.Middleware(http.HandlerFunc(app.Trade)))
 	app.R.Get("/trade/points", app.Middleware(http.HandlerFunc(app.GetPointsPlayerWise)))
+
+	app.R.Get("/profile", app.Middleware(http.HandlerFunc(app.GetProfile)))
+
+	app.R.Get("/portfolio", app.Middleware(http.HandlerFunc(app.GetPortfolio)))
+
+	app.R.Post("/points", app.PushPoints)
 	app.R.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello World"))
 	})
-	app.R.Get("/profile", app.Middleware(http.HandlerFunc(app.GetProfile)))
-	app.R.Post("/trade/transaction", app.Middleware(http.HandlerFunc(app.TransactPlayers)))
-	app.R.Get("/portfolio", app.Middleware(http.HandlerFunc(app.GetPortfolio)))
 
 }

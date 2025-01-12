@@ -12,17 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	tableName               = "default_players_table"
-	CreatePlayersTableQuery = `create table ` + tableName + ` (
-		player_id VARCHAR(6) PRIMARY KEY,
-		base_price INT,
-		cur_price INT,
-		last_change VARCHAR(3) CHECK (last_change IN ('pos', 'neg', 'neu'))
-	);`
-	InsertPlayerQuery = `INSERT INTO ` + tableName + ` (player_id, base_price, cur_price, last_change) VALUES (?, ?, ?, ?);`
-)
-
 type LeagueService struct {
 	KV KVStore.KVStore
 	DB *gorm.DB
@@ -35,8 +24,24 @@ func New(kv KVStore.KVStore, db *gorm.DB) *LeagueService {
 	}
 }
 
+func insertPlayerQuery(tableName, playerID string, basePrice, curPrice int, lastChange string) string {
+	return fmt.Sprintf(`INSERT INTO %s (player_id, base_price, cur_price, last_change) VALUES ('%s', %d, %d, '%s');`, tableName, playerID, basePrice, curPrice, lastChange)
+}
+
+func createTableQuery(tableName string) string {
+
+	createTableQuery := fmt.Sprintf(`CREATE TABLE %s (
+        player_id VARCHAR(6) PRIMARY KEY,
+        base_price INT,
+        cur_price INT,
+        last_change VARCHAR(3) CHECK (last_change IN ('pos', 'neg', 'neu'))
+    );`, tableName)
+
+	return createTableQuery
+}
+
 func generateLeagueID() string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 	rand.Seed(uint64(time.Now().UnixNano()))
 	b := make([]byte, 8)
 	for i := range b {
@@ -83,7 +88,7 @@ func (l *LeagueService) CreateLeague(league CreateLeagueRequestBody) error {
 	leagueID := generateLeagueID()
 
 	// Create a table name using the match_id
-	tableName = "players_" + leagueID
+	tableName := "players_" + leagueID
 
 	// Insert players into the newly created table.
 	// get team details from fixtures endpoint
@@ -119,20 +124,21 @@ func (l *LeagueService) CreateLeague(league CreateLeagueRequestBody) error {
 	}
 
 	// Create a table for the league
-	err = l.DB.Exec(CreatePlayersTableQuery).Error
+	err = l.DB.Exec(createTableQuery(tableName)).Error
 	if err != nil {
 		return fmt.Errorf("error creating table: %v", err)
 	}
-
+	fmt.Printf("Table created %s\n", tableName)
 	for _, player := range playerBasePrices {
-		err = l.DB.Exec(InsertPlayerQuery, player.PlayerID, player.BasePrice, player.BasePrice, "neu").Error
+		fmt.Println(player)
+		err = l.DB.Exec(insertPlayerQuery(tableName, player.PlayerID, player.BasePrice, player.BasePrice, "neu")).Error
 		if err != nil {
 			return fmt.Errorf("error inserting player: %v", err)
 		}
 	}
 
 	// Insert the league into the leagues table
-	err = l.DB.Table("leagues").Create(&League{
+	err = l.DB.Table("leagues").Create(&Leagues{
 		LeagueID: leagueID,
 		MatchID:  league.MatchID,
 		EntryFee: league.EntryFee,
@@ -210,20 +216,88 @@ func (l *LeagueService) RegisterToLeague(user_id int, league_id string) error {
 	// TODO: @anveshreddy18 : Need to relook on whether to update the league_status here or where the league is started.
 	// Update the users_registered,registered column in the leagues table
 
-	err = l.DB.Model(&League{}).Where("league_id = ?", league_id).Updates(map[string]interface{}{"registered": league.Registered, "users_registered": newRegisteredUsers}).Error
+	err = l.DB.Table("leagues").Where("league_id = ?", league_id).Updates(map[string]interface{}{"registered": league.Registered, "users_registered": newRegisteredUsers}).Error
 
 	if err != nil {
 		return fmt.Errorf("error updating league: %v", err)
 	}
 
 	// Also add the user to the purse table
-	err = l.DB.Table("purse").Create(map[string]interface{}{"user_id": user_id, "league_id": league_id, "balance": 10000}).Error
+	err = l.DB.Table("purse").Create(map[string]interface{}{"user_id": user_id, "league_id": league_id, "remaining_purse": 10000}).Error
 
 	if err != nil {
 		return fmt.Errorf("error updating purse: %v", err)
 	}
 
+	// Add balance in cache
+	err = l.KV.Set(fmt.Sprintf("purse_%d_%s", user_id, league_id), 10000)
+	if err != nil {
+		return fmt.Errorf("error updating cache: %v", err)
+	}
+
 	return nil
 }
 
-// Delete 
+// Delete League
+func (l *LeagueService) DeleteLeague(leagueID string) error {
+
+	tableName := "players_" + leagueID
+
+	// Delete the league from the leagues table
+	err := l.DB.Table("leagues").Where("league_id = ?", leagueID).Delete(&League{}).Error
+	if err != nil {
+		return err
+	}
+
+	// Delete the players table
+	err = l.DB.Exec("DROP TABLE " + tableName).Error
+	if err != nil {
+		return err
+	}
+
+	// Delete the Redis keys
+	keys, err := l.KV.Keys("players_" + leagueID + "*")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(keys)
+
+	err = l.KV.Del(keys...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// StartLeague function
+func (l *LeagueService) StartLeague(leagueID string) error {
+
+	// Update the league status to 'opened'
+	err := l.DB.Table("leagues").Where("league_id = ?", leagueID).Updates(map[string]interface{}{"league_status": "active"}).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// StartMatch function
+func (l *LeagueService) StartMatch(leagueID string) error {
+
+	// Make a Get Request to endpoint http://localhost:8081/scores?match_id={match_id} to get the scores of the match
+
+	var matchID string
+	err := l.DB.Table("leagues").Where("league_id = ?", leagueID).Scan(&matchID).Error
+	if err != nil {
+		return err
+	}
+
+	_, err = http.Get("http://localhost:8081/scores?match_id=" + matchID)
+	if err != nil {
+		return fmt.Errorf("error triggering webhook: %v", err)
+	}
+
+	return nil
+}

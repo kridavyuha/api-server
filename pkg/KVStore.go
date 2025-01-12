@@ -14,4 +14,9 @@ type KVStore interface {
 	INCR(key string) (int64, error)
 	DECR(key string) (int64, error)
 	LRem(key string, count int64, value interface{}) error
+	Keys(pattern string) ([]string, error)
+	Del(keys ...string) error
+	HSet(key, field string, value interface{}) error
+	HGet(key, field string) (string, error)
+	HGetAll(key string) (map[string]string, error)
 }
