@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -234,6 +235,10 @@ func (l *LeagueService) RegisterToLeague(user_id int, league_id string) error {
 	if err != nil {
 		return fmt.Errorf("error updating cache: %v", err)
 	}
+
+	// Also create a portfolio for this user
+	// this is to ensure that users portfolio is truely cached or not.
+	l.KV.HSet("portfolio_"+strconv.Itoa(user_id)+"_"+league_id, "is_cached", "active")
 
 	return nil
 }
