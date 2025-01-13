@@ -1,72 +1,24 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
+	"backend/internals/portfolio"
 	"net/http"
 )
 
-type Portfolio struct {
-	PlayerId   string `json:"player_id"`
-	Shares     int    `json:"shares"`
-	Invested   int    `json:"invested"`
-	CurPrice   int    `json:"cur_price"`
-	PlayerName string `json:"player_name"`
-	TeamName   string `json:"team_name"`
-}
-
-type DetailedPortfolio struct {
-	Players []Portfolio `json:"players"`
-	Balance int         `json:"balance"`
-}
-
 func (app *App) GetPortfolio(w http.ResponseWriter, r *http.Request) {
-	leagueId := r.URL.Query().Get("league_id")
 	userId := r.Context().Value("user_id").(int)
+	leagueId := r.URL.Query().Get("league_id")
 
-	fmt.Println("League ID:", leagueId, "User ID:", userId)
-
-	// Get the portfolio of the user from the DB
-	var portfolio []Portfolio
-	tx := app.DB.Raw("SELECT player_id, shares, invested FROM portfolio WHERE user_id = ? AND league_id = ?", userId, leagueId).Scan(&portfolio)
-	if tx.Error != nil {
-		http.Error(w, tx.Error.Error(), http.StatusInternalServerError)
+	if leagueId == "" {
+		sendResponse(w, httpResp{Status: http.StatusBadRequest, IsError: true, Error: "league_id is required"})
 		return
 	}
 
-	// Using LeagueID and PlayerID, get the player name and current price
-	for i, player := range portfolio {
-		var curPrice int
-		tx = app.DB.Raw("SELECT cur_price FROM players_"+leagueId+" WHERE player_id = ?", player.PlayerId).Scan(&curPrice)
-		if tx.Error != nil {
-			http.Error(w, tx.Error.Error(), http.StatusInternalServerError)
-			return
-		}
-		var playerInfo struct {
-			PlayerName string
-			Team       string
-		}
-		app.DB.Raw("SELECT player_name,team FROM players WHERE player_id = ?", player.PlayerId).Scan(&playerInfo)
-		portfolio[i].CurPrice = curPrice
-		portfolio[i].PlayerName = playerInfo.PlayerName
-		portfolio[i].TeamName = playerInfo.Team
-	}
-
-	// Get the remaining purse balance
-	var balance int
-	tx = app.DB.Raw("SELECT remaining_purse FROM purse WHERE user_id = ? AND league_id = ?", userId, leagueId).Scan(&balance)
-	if tx.Error != nil {
-		http.Error(w, tx.Error.Error(), http.StatusInternalServerError)
+	portfolio, err := portfolio.New(app.KVStore, app.DB).GetDetailedPortfolio(userId, leagueId)
+	if err != nil {
+		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: err.Error()})
 		return
 	}
 
-	// Prepare the response
-	response := DetailedPortfolio{
-		Players: portfolio,
-		Balance: balance,
-	}
-
-	// Send the response
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	sendResponse(w, httpResp{Status: http.StatusOK, Data: portfolio})
 }
