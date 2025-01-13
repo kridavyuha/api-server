@@ -1,8 +1,7 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
+	"backend/internals/profile"
 	"net/http"
 )
 
@@ -15,22 +14,12 @@ type Users struct {
 
 func (app *App) GetProfile(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(int)
-	if !ok {
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
-		return
-	}
+	userID := r.Context().Value("user_id").(int)
 
-	// Fetch user details from Users table
-	var profile Users
-	err := app.DB.Where("user_id = ?", userID).First(&profile).Error
+	profile, err := profile.New(app.KVStore, app.DB).GetProfile(userID)
 	if err != nil {
-		http.Error(w, "Failed to get profile", http.StatusInternalServerError)
+		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: err.Error()})
 		return
 	}
-
-	fmt.Println("Profile:", profile)
-
-	// Write profile to response
-	json.NewEncoder(w).Encode(profile)
+	sendResponse(w, httpResp{Status: http.StatusOK, Data: profile})
 }
