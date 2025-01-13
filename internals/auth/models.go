@@ -2,10 +2,10 @@ package auth
 
 // Users Table structure.
 type Users struct {
-	UserID     int    `json:"user_id" gorm:"primaryKey;autoIncrement"`
-	UserName   string `json:"user_name"`
-	Password   string `json:"password"`
-	MailID     string `json:"mail_id"`
+	UserID     int    `json:"user_id" gorm:"primaryKey;autoIncrement;not null"`
+	UserName   string `json:"user_name" gorm:"not null"`
+	Password   string `json:"password" gorm:"not null"`
+	MailID     string `json:"mail_id" gorm:"not null"`
 	ProfilePic string `json:"profile_pic"`
 }
 
