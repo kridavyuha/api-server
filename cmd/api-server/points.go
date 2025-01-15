@@ -20,6 +20,8 @@ type BallByBall struct {
 // We also send the points to the clients connected to the websocket
 // We need to update the time sereies data for the player in redis cache.
 func (app *App) PushPoints(w http.ResponseWriter, r *http.Request) {
+
+	fmt.Println(app.WS)
 	var ballDetails BallByBall
 	// parse the request body.
 	data, err := ioutil.ReadAll(r.Body)
@@ -53,6 +55,7 @@ func (app *App) PushPoints(w http.ResponseWriter, r *http.Request) {
 	for conn, val := range app.WS {
 		//TODO: can we implement this through go routines ?
 		// check the match_id with that of the client
+
 		if val.MatchID == ballDetails.MatchID {
 			err := conn.WriteMessage(websocket.TextMessage, data)
 			if err != nil {

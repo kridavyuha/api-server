@@ -37,9 +37,12 @@ CREATE TABLE leagues (
     capacity INT NOT NULL DEFAULT 100,
     registered INT DEFAULT 0,
     users_registered TEXT DEFAULT '',
-    league_status VARCHAR(15) DEFAULT 'upcoming' CHECK (league_status IN ('active', 'completed', 'upcoming')),
+    league_status VARCHAR(15) DEFAULT 'not started' CHECK (league_status IN ('active', 'completed', 'not started')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+Alter Table leagues
+
 
 -- once this table is created we also create a points_{} table to track the cur_price.
 -- so here we call squads api once to get the player id's belonging to those teams and get their respective base prices.
@@ -94,6 +97,10 @@ CREATE TABLE portfolio (
     FOREIGN KEY (player_id) REFERENCES players(player_id)
 );
 
+-- Alter portfolio table to add column invested
+ALTER TABLE portfolio
+ADD COLUMN invested INT NOT NULL DEFAULT 0;
+
 
 -- Create a table to store the transactions of the users.
 -- As this is a bit rarely acccessed table, we can keep it in the same table.
@@ -128,5 +135,23 @@ ALTER TABLE transactions
 DROP CONSTRAINT transactions_league_id_fkey,
 ADD CONSTRAINT transactions_league_id_fkey
 FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE;
+
+-- Add ON DELETE CASCADE to transactions table for user_id
+ALTER TABLE transactions
+DROP CONSTRAINT transactions_user_id_fkey,
+ADD CONSTRAINT transactions_user_id_fkey
+FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
+
+-- Add ON DELETE CASCADE to portfolio table for user_id
+ALTER TABLE portfolio
+DROP CONSTRAINT portfolio_user_id_fkey,
+ADD CONSTRAINT portfolio_user_id_fkey
+FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
+
+-- Add ON DELETE CASCADE to purse table for user_id
+ALTER TABLE purse
+DROP CONSTRAINT purse_user_id_fkey,
+ADD CONSTRAINT purse_user_id_fkey
+FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
 
 

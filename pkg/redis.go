@@ -129,3 +129,43 @@ func (r Redis) LRem(key string, count int64, value interface{}) error {
 	}
 	return nil
 }
+
+func (r Redis) Keys(pattern string) ([]string, error) {
+	val, err := r.client.Keys(ctx, pattern).Result()
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
+}
+
+func (r Redis) Del(keys ...string) error {
+	err := r.client.Del(ctx, keys...).Err()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r Redis) HSet(key, field string, value interface{}) error {
+	err := r.client.HSet(ctx, key, field, value).Err()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r Redis) HGet(key, field string) (string, error) {
+	val, err := r.client.HGet(ctx, key, field).Result()
+	if err != nil {
+		return "", err
+	}
+	return val, nil
+}
+
+func (r Redis) HGetAll(key string) (map[string]string, error) {
+	val, err := r.client.HGetAll(ctx, key).Result()
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
+}
