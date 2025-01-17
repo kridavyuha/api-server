@@ -66,7 +66,7 @@ func (ts *TradeService) getCurPrice(league_id string, player_id string) (int, st
 		return 0, "", err
 	}
 
-	TsAndPrice := strings.Split(playerData[0], ",")
+	TsAndPrice := strings.Split(playerData[len(playerData)-1], ",")
 	if len(TsAndPrice) != 2 {
 		return 0, "", fmt.Errorf("invalid data format for price and timestamp")
 	}
@@ -76,6 +76,24 @@ func (ts *TradeService) getCurPrice(league_id string, player_id string) (int, st
 		return 0, "", err
 	}
 	return price, TsAndPrice[0], nil
+}
+
+func (ts *TradeService) getBasePrice(league_id string, player_id string) (int, error) {
+	playerData, err := ts.getPlayerPriceList(league_id, player_id)
+	if err != nil {
+		return 0, err
+	}
+
+	TsAndPrice := strings.Split(playerData[0], ",")
+	if len(TsAndPrice) != 2 {
+		return 0, fmt.Errorf("invalid data format for price and timestamp")
+	}
+
+	price, err := strconv.Atoi(TsAndPrice[1])
+	if err != nil {
+		return 0, err
+	}
+	return price, nil
 }
 
 func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, userId int, transactionDetails TransactionDetails) error {
@@ -203,12 +221,20 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 		playerId := strings.Split(player, "_")[2]
 
 		price, timestamp, err := ts.getCurPrice(leagueId, playerId)
+
+		if err != nil {
+			return playerDetails, err
+		}
+
+		basePrice, err := ts.getBasePrice(leagueId, playerId)
+
 		if err != nil {
 			return playerDetails, err
 		}
 		p.CurPrice = price
 		p.LastChange = timestamp
 		p.PlayerID = playerId
+		p.BasePrice = basePrice
 		playerDetails = append(playerDetails, p)
 	}
 
