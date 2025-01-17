@@ -155,3 +155,9 @@ ADD CONSTRAINT purse_user_id_fkey
 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
 
 
+-- Add Column credits and rating to users table
+ALTER TABLE users
+ADD COLUMN credits INT DEFAULT 500,
+ADD COLUMN rating INT DEFAULT 1500;
+
+

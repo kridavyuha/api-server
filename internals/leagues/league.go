@@ -210,6 +210,23 @@ func (l *LeagueService) RegisterToLeague(user_id int, league_id string) error {
 		return fmt.Errorf("league is full")
 	}
 
+	// check users credits
+	var credits int
+	err = l.DB.Table("users").Select("credits").Where("user_id = ?", user_id).Scan(&credits).Error
+	if err != nil {
+		return fmt.Errorf("error getting user credits: %v", err)
+	}
+
+	if credits < league.EntryFee {
+		return fmt.Errorf("insufficient credits")
+	}
+
+	// Deduct the entry fee from the user's credits
+	err = l.DB.Table("users").Where("user_id = ?", user_id).Updates(map[string]interface{}{"credits": credits - league.EntryFee}).Error
+	if err != nil {
+		return fmt.Errorf("error updating user credits: %v", err)
+	}
+
 	// Add the user to the users_registered list
 	newRegisteredUsers := strings.TrimPrefix(league.UsersRegistered+fmt.Sprintf(",%d", user_id), ",")
 	league.Registered = league.Registered + 1
@@ -274,6 +291,31 @@ func (l *LeagueService) DeleteLeague(leagueID string) error {
 	}
 
 	return nil
+}
+
+func (l *LeagueService) GetMyLeagues(user_id int) ([]League, error) {
+	var leagues []League
+	err := l.DB.Table("leagues").Where("users_registered LIKE ?", "%"+strconv.Itoa(user_id)+"%").Find(&leagues).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for i, league := range leagues {
+		fixture, err := getFixtures(league.MatchID)
+		if err != nil {
+			return nil, err
+		}
+		leagues[i].TeamA = fixture.TeamA
+		leagues[i].TeamB = fixture.TeamB
+
+		// Add a field to check if the user is registered for the league
+		leagues[i].IsRegistered = false
+		if strings.Contains(league.UsersRegistered, fmt.Sprintf("%d", user_id)) {
+			leagues[i].IsRegistered = true
+		}
+	}
+
+	return leagues, nil
 }
 
 // StartLeague function
