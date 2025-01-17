@@ -59,14 +59,17 @@ func (ps *PortfolioService) getPlayerPriceList(leagueId, playerId string) ([]str
 }
 
 func (ps *PortfolioService) getCurPrice(league_id string, player_id string) (int, string, error) {
-
 	playerData, err := ps.getPlayerPriceList(league_id, player_id)
-	fmt.Println(playerData)
 	if err != nil {
 		return 0, "", err
 	}
 
-	TsAndPrice := strings.Split(playerData[0], ",")
+	if len(playerData) == 0 {
+		return 0, "", fmt.Errorf("no price data available for player")
+	}
+
+	lastEntry := playerData[len(playerData)-1]
+	TsAndPrice := strings.Split(lastEntry, ",")
 	if len(TsAndPrice) != 2 {
 		return 0, "", fmt.Errorf("invalid data format for price and timestamp")
 	}
