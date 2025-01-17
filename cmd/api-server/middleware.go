@@ -18,6 +18,7 @@ func (app *App) Middleware(next http.Handler) http.HandlerFunc {
 
 		if token == "" {
 			sendResponse(w, httpResp{Status: http.StatusUnauthorized, IsError: true, Error: "Unauthorized"})
+			return
 		}
 
 		// Validate the token and get the user ID
@@ -25,11 +26,13 @@ func (app *App) Middleware(next http.Handler) http.HandlerFunc {
 
 		if err != nil {
 			sendResponse(w, httpResp{Status: http.StatusUnauthorized, IsError: true, Error: "Unauthorized"})
+			return
 		}
 
 		// Check if the token is in the list of valid tokens
 		if !auth.New(app.KVStore, app.DB).CheckIfTokenIsWhiteListed(userID, token) {
 			sendResponse(w, httpResp{Status: http.StatusUnauthorized, IsError: true, Error: "Unauthorized"})
+			return
 		}
 
 		// Create a new context with the user ID and token
