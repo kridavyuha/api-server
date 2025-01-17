@@ -22,6 +22,8 @@ func (app *App) initHandlers() {
 
 	app.R.Get("/portfolio", app.Middleware(http.HandlerFunc(app.GetPortfolio)))
 
+	app.R.Get("/leaderboard", app.Middleware(http.HandlerFunc(app.GetLeaderboard)))
+
 	app.R.Post("/points", app.PushPoints)
 	app.R.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello World"))
