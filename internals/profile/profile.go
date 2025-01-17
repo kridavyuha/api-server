@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"backend/internals/leagues"
 	KVStore "backend/pkg"
 
 	"gorm.io/gorm"
@@ -9,21 +10,32 @@ import (
 type ProfileService struct {
 	KV KVStore.KVStore
 	DB *gorm.DB
+	LS *leagues.LeagueService
 }
 
 func New(kv KVStore.KVStore, db *gorm.DB) *ProfileService {
 	return &ProfileService{
 		KV: kv,
 		DB: db,
+		LS: leagues.New(kv, db),
 	}
 }
 
-func (ps *ProfileService) GetProfile(userId int) (Profile, error) {
+func (ps *ProfileService) GetProfile(userId int) (CompleteProfile, error) {
 	// Fetch user details from Users table
-	var profile Profile
-	err := ps.DB.Table("users").Select("user_id, user_name, mail_id, profile_pic").Where("user_id = ?", userId).Scan(&profile).Error
+	var completeProfile CompleteProfile
+	err := ps.DB.Table("users").Select("user_id, user_name, mail_id, profile_pic,credits, rating").Where("user_id = ?", userId).Scan(&completeProfile.Profile).Error
 	if err != nil {
-		return profile, err
+		return completeProfile, err
 	}
-	return profile, nil
+
+	// Get my leagues..
+	leagues, err := ps.LS.GetMyLeagues(userId)
+	if err != nil {
+		return completeProfile, err
+	}
+
+	completeProfile.Leagues = leagues
+
+	return completeProfile, nil
 }
