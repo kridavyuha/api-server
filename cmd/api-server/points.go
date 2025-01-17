@@ -91,7 +91,7 @@ func (app *App) PushPoints(w http.ResponseWriter, r *http.Request) {
 
 	for _, league := range leagues {
 		for playerID, points := range ballDetails.Player {
-			key := "graph_" + league + "_" + playerID
+			key := "players_" + league + "_" + playerID
 			// This way if we miss any points in entry to redis cache , we may get wrong points while cal from prev points.
 			// DB points will be correct but redis cache points will be wrong.
 			// TODO: Can we have a cron job to update the redis cache points from DB points? Seems like this whole job of running it ball by ball is heavy.
