@@ -2,10 +2,12 @@ package main
 
 import (
 	"backend/internals/trade"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 //TODO: Do need to check whether the user registered for the league before buying the player?
@@ -33,6 +35,35 @@ func (app *App) TransactPlayers(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		sendResponse(w, httpResp{Status: http.StatusBadRequest, IsError: true, Error: err.Error()})
+		return
+	}
+
+	transactionData := map[string]interface{}{
+		"player_id":        playerId,
+		"league_id":        leagueId,
+		"user_id":          userId,
+		"transaction_type": transactionType,
+	}
+
+	transactionJSON, err := json.Marshal(transactionData)
+	if err != nil {
+		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: "Error marshalling transaction data"})
+		return
+	}
+
+	// Publish the transaction to the queue
+	err = app.Ch.Publish(
+		"",     // exchange
+		"txns", // routing key
+		false,  // mandatory
+		false,  // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        transactionJSON,
+		})
+
+	if err != nil {
+		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: "Error publishing transaction to the queue"})
 		return
 	}
 
