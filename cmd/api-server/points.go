@@ -1,9 +1,9 @@
 package main
 
 import (
+	"backend/internals/trade"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -19,19 +19,17 @@ type BallByBall struct {
 // We get the points from the generator and update the points in the DB
 // We also send the points to the clients connected to the websocket
 // We need to update the time sereies data for the player in redis cache.
-func (app *App) PushPoints(w http.ResponseWriter, r *http.Request) {
+func (app *App) BallPicker(data []byte) {
 
 	fmt.Println(app.WS)
 	var ballDetails BallByBall
-	// parse the request body.
-	data, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Could not read request body", http.StatusBadRequest)
+	if !json.Valid(data) {
+		fmt.Println("Invalid JSON data")
 		return
 	}
-	err = json.Unmarshal(data, &ballDetails)
+	err := json.Unmarshal(data, &ballDetails)
 	if err != nil {
-		http.Error(w, "Could not parse request body", http.StatusBadRequest)
+		fmt.Println("Error unmarshalling data:", err)
 		return
 	}
 
@@ -122,7 +120,7 @@ func (app *App) PushPoints(w http.ResponseWriter, r *http.Request) {
 
 	// Write to redis cache
 
-	w.Write([]byte("Points received"))
+	// w.Write([]byte("Points received"))
 }
 
 // Get points for a player from redis cache for a league
@@ -131,28 +129,16 @@ func (app *App) GetPointsPlayerWise(w http.ResponseWriter, r *http.Request) {
 	leagueID := r.URL.Query().Get("league_id")
 	playerID := r.URL.Query().Get("player_id")
 	if leagueID == "" || playerID == "" {
-		http.Error(w, "league_id and player_id is required", http.StatusBadRequest)
-		return
+		sendResponse(w, httpResp{Status: http.StatusBadRequest, IsError: true, Error: "required params missing"})
+
 	}
 
-	key := leagueID + "_" + playerID
-	// Get all the points for the player in the league
-	points, err := app.KVStore.LRange(key, 0, -1)
+	points, err := trade.New(app.KVStore, app.DB).GetTimeseriesPlayerPoints(playerID, leagueID)
+
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: err.Error()})
 		return
 	}
 
-	fmt.Println("Points for player:", playerID, "in league:", leagueID, "Points:", points)
-
-	// Return the points
-	type respMssge struct {
-		Points []string `json:"points"`
-	}
-
-	response := respMssge{
-		Points: points,
-	}
-
-	json.NewEncoder(w).Encode(response)
+	sendResponse(w, httpResp{Status: http.StatusOK, Data: map[string]interface{}{"data": points}})
 }
