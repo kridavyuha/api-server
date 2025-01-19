@@ -331,3 +331,8 @@ func (ts *TradeService) UpdatePortfolio(transactionType string, userId int, play
 
 	return nil
 }
+
+func (ts *TradeService) GetTimeseriesPlayerPoints(player_id, league_id string) ([]string, error) {
+	// Get the timeseries data from the players_{league_id}_{player_id} list
+	return ts.KV.LRange("players_"+league_id+"_"+player_id, 0, -1)
+}
