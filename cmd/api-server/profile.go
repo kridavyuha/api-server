@@ -1,8 +1,9 @@
 package main
 
 import (
-	"backend/internals/profile"
 	"net/http"
+
+	"github.com/kridavyuha/api-server/internals/profile"
 )
 
 type Users struct {

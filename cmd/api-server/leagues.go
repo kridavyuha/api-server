@@ -1,8 +1,9 @@
 package main
 
 import (
-	"backend/internals/leagues"
 	"net/http"
+
+	"github.com/kridavyuha/api-server/internals/leagues"
 )
 
 func (app *App) CreateLeague(w http.ResponseWriter, r *http.Request) {

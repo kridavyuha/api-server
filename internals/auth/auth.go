@@ -1,21 +1,22 @@
 package auth
 
 import (
-	KVStore "backend/pkg"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/kridavyuha/api-server/pkg/kvstore"
 
 	"github.com/dgrijalva/jwt-go"
 	"gorm.io/gorm"
 )
 
 type AuthService struct {
-	KV KVStore.KVStore
+	KV kvstore.KVStore
 	DB *gorm.DB
 }
 
-func New(kv KVStore.KVStore, db *gorm.DB) *AuthService {
+func New(kv kvstore.KVStore, db *gorm.DB) *AuthService {
 	return &AuthService{
 		KV: kv,
 		DB: db,
@@ -36,7 +37,7 @@ func (a *AuthService) Login(loginDetails LoginRequestBody) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Verify the password
 	if user.Password != password {
 		return "", errors.New("invalid credentials")

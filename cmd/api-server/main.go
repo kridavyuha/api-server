@@ -1,8 +1,9 @@
 package main
 
 import (
-	KVStore "backend/pkg"
 	"log"
+
+	"github.com/kridavyuha/api-server/pkg/kvstore"
 
 	"net/http"
 	"sync"
@@ -20,7 +21,7 @@ type App struct {
 	R        *chi.Mux
 	WS       map[*websocket.Conn]WSDetails
 	ClientsM sync.Mutex
-	KVStore  KVStore.KVStore
+	KVStore  kvstore.KVStore
 	Ch       *amqp.Channel
 }
 

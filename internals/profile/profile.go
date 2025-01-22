@@ -1,19 +1,19 @@
 package profile
 
 import (
-	"backend/internals/leagues"
-	KVStore "backend/pkg"
+	"github.com/kridavyuha/api-server/internals/leagues"
+	"github.com/kridavyuha/api-server/pkg/kvstore"
 
 	"gorm.io/gorm"
 )
 
 type ProfileService struct {
-	KV KVStore.KVStore
+	KV kvstore.KVStore
 	DB *gorm.DB
 	LS *leagues.LeagueService
 }
 
-func New(kv KVStore.KVStore, db *gorm.DB) *ProfileService {
+func New(kv kvstore.KVStore, db *gorm.DB) *ProfileService {
 	return &ProfileService{
 		KV: kv,
 		DB: db,

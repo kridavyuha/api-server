@@ -1,22 +1,23 @@
 package leaderboard
 
 import (
-	"backend/internals/portfolio"
-	KVStore "backend/pkg"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/kridavyuha/api-server/internals/portfolio"
+	"github.com/kridavyuha/api-server/pkg/kvstore"
 
 	"gorm.io/gorm"
 )
 
 type Leaderboard struct {
-	KVStore KVStore.KVStore
+	KVStore kvstore.KVStore
 	DB      *gorm.DB
 	ps      *portfolio.PortfolioService
 }
 
-func New(kv KVStore.KVStore, db *gorm.DB) *Leaderboard {
+func New(kv kvstore.KVStore, db *gorm.DB) *Leaderboard {
 	return &Leaderboard{
 		KVStore: kv,
 		DB:      db,

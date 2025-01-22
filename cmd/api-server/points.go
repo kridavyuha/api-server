@@ -1,11 +1,12 @@
 package main
 
 import (
-	"backend/internals/trade"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/kridavyuha/api-server/internals/trade"
 
 	"github.com/gorilla/websocket"
 )

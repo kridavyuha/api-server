@@ -1,8 +1,9 @@
 package main
 
 import (
-	"backend/internals/portfolio"
 	"net/http"
+
+	"github.com/kridavyuha/api-server/internals/portfolio"
 )
 
 func (app *App) GetPortfolio(w http.ResponseWriter, r *http.Request) {

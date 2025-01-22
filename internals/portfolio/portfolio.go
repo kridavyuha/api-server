@@ -1,21 +1,22 @@
 package portfolio
 
 import (
-	KVStore "backend/pkg"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/kridavyuha/api-server/pkg/kvstore"
 
 	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
 type PortfolioService struct {
-	KV KVStore.KVStore
+	KV kvstore.KVStore
 	DB *gorm.DB
 }
 
-func New(kv KVStore.KVStore, db *gorm.DB) *PortfolioService {
+func New(kv kvstore.KVStore, db *gorm.DB) *PortfolioService {
 	return &PortfolioService{
 		KV: kv,
 		DB: db,

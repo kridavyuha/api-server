@@ -1,22 +1,23 @@
 package trade
 
 import (
-	KVStore "backend/pkg"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kridavyuha/api-server/pkg/kvstore"
 
 	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
 type TradeService struct {
-	KV KVStore.KVStore
+	KV kvstore.KVStore
 	DB *gorm.DB
 }
 
-func New(kv KVStore.KVStore, db *gorm.DB) *TradeService {
+func New(kv kvstore.KVStore, db *gorm.DB) *TradeService {
 	return &TradeService{
 		KV: kv,
 		DB: db,
