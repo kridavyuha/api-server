@@ -1,9 +1,10 @@
 package main
 
 import (
-	"backend/internals/auth"
 	"context"
 	"net/http"
+
+	"github.com/kridavyuha/api-server/internals/auth"
 )
 
 // Middleware function

@@ -1,8 +1,9 @@
 package main
 
 import (
-	"backend/internals/leaderboard"
 	"net/http"
+
+	"github.com/kridavyuha/api-server/internals/leaderboard"
 )
 
 func (app *App) GetLeaderboard(w http.ResponseWriter, r *http.Request) {

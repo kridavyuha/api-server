@@ -1,8 +1,9 @@
 package main
 
 import (
-	KVStore "backend/pkg"
 	"log"
+
+	"github.com/kridavyuha/api-server/pkg/kvstore"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -26,7 +27,7 @@ func (app *App) initDB() (*gorm.DB, error) {
 
 func (app *App) initKVStore() {
 	// initialize redis
-	app.KVStore = KVStore.NewRedis("localhost:6379", "", 0)
+	app.KVStore = kvstore.NewRedis("localhost:6379", "", 0)
 }
 
 func (app *App) initTxnQueue() {

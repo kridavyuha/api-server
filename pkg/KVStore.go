@@ -1,4 +1,4 @@
-package KVStore
+package kvstore
 
 type KVStore interface {
 	Get(key string) (string, error)

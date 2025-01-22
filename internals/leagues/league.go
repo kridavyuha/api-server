@@ -1,7 +1,6 @@
 package leagues
 
 import (
-	KVStore "backend/pkg"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,16 +8,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kridavyuha/api-server/pkg/kvstore"
+
 	"golang.org/x/exp/rand"
 	"gorm.io/gorm"
 )
 
 type LeagueService struct {
-	KV KVStore.KVStore
+	KV kvstore.KVStore
 	DB *gorm.DB
 }
 
-func New(kv KVStore.KVStore, db *gorm.DB) *LeagueService {
+func New(kv kvstore.KVStore, db *gorm.DB) *LeagueService {
 	return &LeagueService{
 		KV: kv,
 		DB: db,

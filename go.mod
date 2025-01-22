@@ -1,4 +1,4 @@
-module backend
+module github.com/kridavyuha/api-server
 
 go 1.23.3
 

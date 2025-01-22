@@ -1,6 +1,6 @@
 package profile
 
-import "backend/internals/leagues"
+import "github.com/kridavyuha/api-server/internals/leagues"
 
 type Profile struct {
 	UserID     int    `json:"user_id"`

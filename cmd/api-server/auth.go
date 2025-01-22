@@ -1,8 +1,9 @@
 package main
 
 import (
-	"backend/internals/auth"
 	"net/http"
+
+	"github.com/kridavyuha/api-server/internals/auth"
 )
 
 func (app *App) Login(w http.ResponseWriter, r *http.Request) {

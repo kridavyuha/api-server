@@ -1,10 +1,11 @@
 package main
 
 import (
-	"backend/internals/trade"
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/kridavyuha/api-server/internals/trade"
 
 	"github.com/gorilla/websocket"
 	amqp "github.com/rabbitmq/amqp091-go"
