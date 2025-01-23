@@ -2,6 +2,7 @@ package trade
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -41,7 +42,7 @@ func (ts *TradeService) getPlayerPriceList(leagueId, playerId string) ([]string,
 	return players, nil
 }
 
-func (ts *TradeService) getPurse(userId int, leagueId string) (int, error) {
+func (ts *TradeService) getPurse(userId int, leagueId string) (float64, error) {
 	balanceStr, err := ts.KV.Get("purse_" + strconv.Itoa(userId) + "_" + leagueId)
 	if err != nil {
 		if err == redis.Nil {
@@ -53,7 +54,7 @@ func (ts *TradeService) getPurse(userId int, leagueId string) (int, error) {
 		}
 	}
 
-	balance, err := strconv.Atoi(balanceStr)
+	balance, err := strconv.ParseFloat(balanceStr, 64)
 	if err != nil {
 		return 0, err
 	}
@@ -97,6 +98,16 @@ func (ts *TradeService) getBasePrice(league_id string, player_id string) (int, e
 	return price, nil
 }
 
+func priceChange(shares int, cur_price int) float64 {
+	// Lets say the threshold by which we change price for a transaction is x
+	// x = 0.1% of cur_price
+
+	//
+
+	return 0.0
+}
+
+// TODO: change return type to float64, err as we need to send no.of shares/sale price for buy or sell respectively.
 func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, userId int, transactionDetails TransactionDetails) error {
 
 	// Here we simultaneously update the transactions, purse and portfolio tables in db and cache for consistency
@@ -112,20 +123,20 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 		return fmt.Errorf("invalid data format for price and timestamp")
 	}
 
-	transactionDetails.Price, err = strconv.Atoi(priceAndTs[1])
+	transactionDetails.PlayerCurrentPrice, err = strconv.ParseFloat(priceAndTs[1], 64)
 	if err != nil {
 		return err
 	}
 	// ----------------------------------------------
 	// Get the user's balance from the purse table
 
-	balance, err := ts.getPurse(userId, leagueId)
+	userRemainingPoints, err := ts.getPurse(userId, leagueId)
 	if err != nil {
 		return err
 	}
 
 	// ----------------------------------------------
-	var shares int
+	var ownedShares float64
 
 	// Check in portfolio_user_id_league_id hash for this player_id field
 	_, err = ts.KV.HGet("portfolio_"+strconv.Itoa(userId)+"_"+leagueId, "is_cached")
@@ -150,7 +161,7 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 		return fmt.Errorf("invalid data format for shares and invested")
 	}
 
-	shares, err = strconv.Atoi(sharesInvested[0])
+	ownedShares, err = strconv.ParseFloat(sharesInvested[0], 64)
 	if err != nil {
 		return err
 	}
@@ -162,36 +173,66 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 
 	// ----------------------------------------------
 
+	var avgPriceOfTransaction float64
+
 	if transactionType == "buy" {
 		// Check the user's balance from the purse table
-		// Calculate the total cost
-		totalCost := transactionDetails.Shares * transactionDetails.Price
+		estimatedPurchaseAmount := transactionDetails.Shares * transactionDetails.PlayerCurrentPrice
 		// Check if the user has enough balance
-		if balance < totalCost {
+		if userRemainingPoints < estimatedPurchaseAmount {
 			return fmt.Errorf("insufficient balance")
 		}
-		balance = balance - totalCost
+
+		sharesBought := float64(0)
+		varyingPlayerPrice := transactionDetails.PlayerCurrentPrice
+		for estimatedPurchaseAmount >= varyingPlayerPrice {
+			estimatedPurchaseAmount -= varyingPlayerPrice
+			varyingPlayerPrice++
+			sharesBought++
+		}
+		// Now buy whatever fraction of share the remaining amount could afford
+		fractionOfShares := estimatedPurchaseAmount / varyingPlayerPrice
+		sharesBought += fractionOfShares
+		varyingPlayerPrice += fractionOfShares
+
+		avgPriceOfTransaction = estimatedPurchaseAmount / sharesBought
+
+		// TODO: Use varyingPlayerPrice as the new player price
+
+		// Reduce b
+		// userRemainingPoints = userRemainingPoints - totalCost
 	} else if transactionType == "sell" {
 
-		if shares < transactionDetails.Shares {
+		if ownedShares < transactionDetails.Shares {
 			return fmt.Errorf("insufficient shares")
 		}
-		balance = balance + transactionDetails.Shares*transactionDetails.Price
+
+		intPartOfTransactShares := math.Floor(transactionDetails.Shares)
+		fractionalPartOfTransactShares := transactionDetails.Shares - intPartOfTransactShares
+
+		// calculate the sale worth
+		var saleWorth float64
+
+		saleWorth = ((intPartOfTransactShares)*(transactionDetails.PlayerCurrentPrice) - ((intPartOfTransactShares)*(intPartOfTransactShares-1))/2) + (fractionalPartOfTransactShares * (transactionDetails.PlayerCurrentPrice - intPartOfTransactShares + 1))
+
+		avgPriceOfTransaction = saleWorth / transactionDetails.Shares
+
+		userRemainingPoints = userRemainingPoints + saleWorth
 	}
 
 	// Create an entry in transactions table
-	err = ts.DB.Exec("INSERT INTO transactions (user_id, player_id, league_id, shares, price, transaction_type, transaction_time) VALUES (?, ?, ?, ?, ?, ?, ?)", userId, playerId, leagueId, transactionDetails.Shares, transactionDetails.Price, transactionType, time.Now()).Error
+	err = ts.DB.Exec("INSERT INTO transactions (user_id, player_id, league_id, shares, price, transaction_type, transaction_time) VALUES (?, ?, ?, ?, ?, ?, ?)", userId, playerId, leagueId, transactionDetails.Shares, avgPriceOfTransaction, transactionType, time.Now()).Error
 	if err != nil {
 		return err
 	}
 
 	// Also update the purse table
-	err = ts.DB.Exec("UPDATE purse SET remaining_purse = ? WHERE user_id = ? AND league_id = ?", balance, userId, leagueId).Error
+	err = ts.DB.Exec("UPDATE purse SET remaining_purse = ? WHERE user_id = ? AND league_id = ?", userRemainingPoints, userId, leagueId).Error
 	if err != nil {
 		return err
 	}
 	// Update the user's balance in cache ..
-	err = ts.KV.Set("purse_"+strconv.Itoa(userId)+"_"+leagueId, strconv.Itoa(balance))
+	err = ts.KV.Set("purse_"+strconv.Itoa(userId)+"_"+leagueId, strconv.FormatFloat(userRemainingPoints, 'g', 5, 64))
 	if err != nil {
 		return err
 	}
@@ -199,7 +240,7 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 	// Update the portfolio table
 	// If the player is already present in the portfolio, update the shares and average price
 	// If the player is not present, insert a new row
-	err = ts.UpdatePortfolio(transactionType, userId, playerId, leagueId, transactionDetails, shares, invested)
+	err = ts.UpdatePortfolio(transactionType, userId, playerId, leagueId, transactionDetails, ownedShares, invested)
 	if err != nil {
 		return err
 	}
@@ -289,24 +330,24 @@ func (ts *TradeService) UpdatePortfolio(transactionType string, userId int, play
 		// Update or insert the shares if player is already in the portfolio
 		if shares == 0 {
 			// Update in table first...
-			err := ts.DB.Exec("INSERT INTO portfolio (user_id, player_id, league_id, shares, invested) VALUES (?, ?, ?, ?, ?)", userId, playerId, leagueId, transactionDetails.Shares, transactionDetails.Shares*transactionDetails.Price).Error
+			err := ts.DB.Exec("INSERT INTO portfolio (user_id, player_id, league_id, shares, invested) VALUES (?, ?, ?, ?, ?)", userId, playerId, leagueId, transactionDetails.Shares, transactionDetails.Shares*transactionDetails.PlayerCurrentPrice).Error
 			if err != nil {
 				return err
 			}
 
 			// Update in cache
-			err = ts.KV.HSet("portfolio_"+strconv.Itoa(userId)+"_"+leagueId, playerId, strconv.Itoa(transactionDetails.Shares)+","+strconv.Itoa(transactionDetails.Price*transactionDetails.Shares))
+			err = ts.KV.HSet("portfolio_"+strconv.Itoa(userId)+"_"+leagueId, playerId, strconv.Itoa(transactionDetails.Shares)+","+strconv.Itoa(transactionDetails.PlayerCurrentPrice*transactionDetails.Shares))
 			if err != nil {
 				return err
 			}
 		} else {
 
-			err := ts.DB.Exec("UPDATE portfolio SET shares = shares + ?, invested = invested + ? WHERE user_id = ? AND player_id = ? AND league_id = ?", transactionDetails.Shares, transactionDetails.Price, userId, playerId, leagueId).Error
+			err := ts.DB.Exec("UPDATE portfolio SET shares = shares + ?, invested = invested + ? WHERE user_id = ? AND player_id = ? AND league_id = ?", transactionDetails.Shares, transactionDetails.PlayerCurrentPrice, userId, playerId, leagueId).Error
 			if err != nil {
 				return err
 			}
 			// Update in cache
-			invested += transactionDetails.Price * transactionDetails.Shares
+			invested += transactionDetails.PlayerCurrentPrice * transactionDetails.Shares
 			shares += transactionDetails.Shares
 			err = ts.KV.HSet("portfolio_"+strconv.Itoa(userId)+"_"+leagueId, playerId, strconv.Itoa(shares)+","+strconv.Itoa(invested))
 			if err != nil {
@@ -317,9 +358,9 @@ func (ts *TradeService) UpdatePortfolio(transactionType string, userId int, play
 		// Update or delete the shares if player is already in the portfolio
 
 		shares -= transactionDetails.Shares
-		invested -= transactionDetails.Price * transactionDetails.Shares
+		invested -= transactionDetails.PlayerCurrentPrice * transactionDetails.Shares
 
-		err := ts.DB.Exec("UPDATE portfolio SET shares = ?, invested = invested - ? WHERE user_id = ? AND player_id = ? AND league_id = ?", shares, transactionDetails.Price*transactionDetails.Shares, userId, playerId, leagueId).Error
+		err := ts.DB.Exec("UPDATE portfolio SET shares = ?, invested = invested - ? WHERE user_id = ? AND player_id = ? AND league_id = ?", shares, transactionDetails.PlayerCurrentPrice*transactionDetails.Shares, userId, playerId, leagueId).Error
 		if err != nil {
 			return err
 		}

@@ -1,8 +1,8 @@
 package trade
 
 type TransactionDetails struct {
-	Shares int `json:"shares"`
-	Price  int `json:"price"`
+	Shares             float64 `json:"shares"`
+	PlayerCurrentPrice float64 `json:"price"`
 }
 
 type GetPlayerDetails struct {
