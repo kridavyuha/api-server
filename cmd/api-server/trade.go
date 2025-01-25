@@ -32,18 +32,19 @@ func (app *App) TransactPlayers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = trade.New(app.KVStore, app.DB).Transaction(transactionType, playerId, leagueId, userId, transactionDetails)
+	// err = trade.New(app.KVStore, app.DB).Transaction(transactionType, playerId, leagueId, userId, transactionDetails)
 
-	if err != nil {
-		sendResponse(w, httpResp{Status: http.StatusBadRequest, IsError: true, Error: err.Error()})
-		return
-	}
+	// if err != nil {
+	// 	sendResponse(w, httpResp{Status: http.StatusBadRequest, IsError: true, Error: err.Error()})
+	// 	return
+	// }
 
 	transactionData := map[string]interface{}{
 		"player_id":        playerId,
 		"league_id":        leagueId,
 		"user_id":          userId,
 		"transaction_type": transactionType,
+		"shares":           transactionDetails.Shares,
 	}
 
 	transactionJSON, err := json.Marshal(transactionData)
@@ -52,8 +53,29 @@ func (app *App) TransactPlayers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create a channel
+	ch, err := app.MQConn.Channel()
+	if err != nil {
+		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: "Error creating channel"})
+		return
+	}
+	_, err = ch.QueueDeclare(
+		"txns", // name
+		false,  // durable
+		false,  // delete when unused
+		true,   // exclusive
+		false,  // no-wait
+		nil,    // arguments
+	)
+	if err != nil {
+		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: "Error creating channel"})
+		return
+	}
+
+	defer ch.Close()
+
 	// Publish the transaction to the queue
-	err = app.Ch.Publish(
+	err = ch.Publish(
 		"",     // exchange
 		"txns", // routing key
 		false,  // mandatory
