@@ -1,14 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/kridavyuha/api-server/internals/trade"
 
 	"github.com/gorilla/websocket"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 //TODO: Do need to check whether the user registered for the league before buying the player?
@@ -32,61 +30,10 @@ func (app *App) TransactPlayers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// err = trade.New(app.KVStore, app.DB).Transaction(transactionType, playerId, leagueId, userId, transactionDetails)
-
-	// if err != nil {
-	// 	sendResponse(w, httpResp{Status: http.StatusBadRequest, IsError: true, Error: err.Error()})
-	// 	return
-	// }
-
-	transactionData := map[string]interface{}{
-		"player_id":        playerId,
-		"league_id":        leagueId,
-		"user_id":          userId,
-		"transaction_type": transactionType,
-		"shares":           transactionDetails.Shares,
-	}
-
-	transactionJSON, err := json.Marshal(transactionData)
-	if err != nil {
-		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: "Error marshalling transaction data"})
-		return
-	}
-
-	// Create a channel
-	ch, err := app.MQConn.Channel()
-	if err != nil {
-		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: "Error creating channel"})
-		return
-	}
-	_, err = ch.QueueDeclare(
-		"txns", // name
-		false,  // durable
-		false,  // delete when unused
-		true,   // exclusive
-		false,  // no-wait
-		nil,    // arguments
-	)
-	if err != nil {
-		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: "Error creating channel"})
-		return
-	}
-
-	defer ch.Close()
-
-	// Publish the transaction to the queue
-	err = ch.Publish(
-		"",     // exchange
-		"txns", // routing key
-		false,  // mandatory
-		false,  // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        transactionJSON,
-		})
+	err = trade.New(app.KVStore, app.DB).Transaction(transactionType, playerId, leagueId, userId, transactionDetails)
 
 	if err != nil {
-		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: "Error publishing transaction to the queue"})
+		sendResponse(w, httpResp{Status: http.StatusBadRequest, IsError: true, Error: err.Error()})
 		return
 	}
 

@@ -1,19 +1,22 @@
 package trade
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/kridavyuha/api-server/pkg/kvstore"
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
 type TradeService struct {
-	KV kvstore.KVStore
-	DB *gorm.DB
+	KV   kvstore.KVStore
+	DB   *gorm.DB
+	Conn *amqp.Connection
 }
 
 func New(kv kvstore.KVStore, db *gorm.DB) *TradeService {
@@ -115,7 +118,7 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 	if err != nil {
 		return err
 	}
-	// ----------------------------------------------
+
 	// Get the user's balance from the purse table
 
 	userRemainingPoints, err := ts.getPurse(userId, leagueId)
@@ -123,7 +126,6 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 		return err
 	}
 
-	// ----------------------------------------------
 	var ownedShares int
 
 	// Check in portfolio_user_id_league_id hash for this player_id field
@@ -154,18 +156,8 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 		return err
 	}
 
-	invested, err := strconv.ParseFloat(sharesInvested[1], 64)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Shares: %d, Invested: %f\n", ownedShares, invested)
-
-	// ----------------------------------------------
-
 	if transactionType == "buy" {
 		// Check the user's balance from the purse table
-		// Calculate the total cost
 		estimatedPurchaseAmount := float64(transactionDetails.Shares) * transactionDetails.PlayerCurrentPrice
 		// Check if the user has enough balance
 		if userRemainingPoints < estimatedPurchaseAmount {
@@ -173,12 +165,68 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 		}
 		// balance = balance - totalCost
 	} else if transactionType == "sell" {
-
 		if ownedShares < transactionDetails.Shares {
 			return fmt.Errorf("insufficient shares")
 		}
-		// balance = balance + float64(transactionDetails.Shares)*transactionDetails.PlayerCurrentPrice
 	}
+
+	transactionData := map[string]interface{}{
+		"player_id":        playerId,
+		"league_id":        leagueId,
+		"user_id":          userId,
+		"transaction_type": transactionType,
+		"shares":           transactionDetails.Shares,
+	}
+
+	err = ts.PushTransaction(transactionData)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ts *TradeService) PushTransaction(transactionData map[string]interface{}) error {
+	// This function will be called by the core service to push the transaction to the queue
+	// Create a channel
+	ch, err := ts.Conn.Channel()
+	if err != nil {
+		return fmt.Errorf("error creating channel: %s", err)
+	}
+	_, err = ch.QueueDeclare(
+		"txns", // name
+		false,  // durable
+		false,  // delete when unused
+		true,   // exclusive
+		false,  // no-wait
+		nil,    // arguments
+	)
+	if err != nil {
+		return fmt.Errorf("error declaring queue: %s", err)
+	}
+
+	defer ch.Close()
+
+	// Publish the transaction to the queue
+	transactionJSON, err := json.Marshal(transactionData)
+	if err != nil {
+		return fmt.Errorf("error marshalling transaction data")
+	}
+
+	err = ch.Publish(
+		"",     // exchange
+		"txns", // routing key
+		false,  // mandatory
+		false,  // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        transactionJSON,
+		})
+
+	if err != nil {
+		return fmt.Errorf("error publishing transaction to the queue: %s", err)
+	}
+
 	return nil
 }
 
