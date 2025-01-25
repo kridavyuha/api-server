@@ -101,6 +101,15 @@ CREATE TABLE portfolio (
 ALTER TABLE portfolio
 ADD COLUMN invested INT NOT NULL DEFAULT 0;
 
+--TODO: EXECUTE these !
+-- Drop the column invested from portfolio table
+ALTER TABLE portfolio
+DROP COLUMN invested;
+
+-- Add a new column to the portfolio table AVG_PRICE
+ALTER TABLE portfolio
+ADD COLUMN avg_price INT NOT NULL DEFAULT 0;
+
 
 -- Create a table to store the transactions of the users.
 -- As this is a bit rarely acccessed table, we can keep it in the same table.
