@@ -26,17 +26,17 @@ func New(kv kvstore.KVStore, db *gorm.DB) *LeagueService {
 	}
 }
 
-func insertPlayerQuery(tableName, playerID string, basePrice, curPrice int, lastChange string) string {
-	return fmt.Sprintf(`INSERT INTO %s (player_id, base_price, cur_price, last_change) VALUES ('%s', %d, %d, '%s');`, tableName, playerID, basePrice, curPrice, lastChange)
+func insertPlayerQuery(tableName, playerID string, basePrice, curPrice float64, lastChange string) string {
+	return fmt.Sprintf(`INSERT INTO %s (player_id, base_price, cur_price, last_change) VALUES ('%s', %f, %f, '%s');`, tableName, playerID, basePrice, curPrice, lastChange)
 }
 
 func createTableQuery(tableName string) string {
 
 	createTableQuery := fmt.Sprintf(`CREATE TABLE %s (
         player_id VARCHAR(6) PRIMARY KEY,
-        base_price INT,
-        cur_price INT,
-        last_change VARCHAR(3) CHECK (last_change IN ('pos', 'neg', 'neu'))
+        base_price FLOAT,
+        cur_price FLOAT,
+		time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     );`, tableName)
 
 	return createTableQuery
@@ -116,8 +116,8 @@ func (l *LeagueService) CreateLeague(league CreateLeagueRequestBody) error {
 
 	// Get base price for each player
 	var playerBasePrices []struct {
-		PlayerID  string `json:"player_id"`
-		BasePrice int    `json:"base_price"`
+		PlayerID  string  `json:"player_id"`
+		BasePrice float64 `json:"base_price"`
 	}
 
 	err = l.DB.Table("base_price").Where("player_id IN ?", playerIDs).Find(&playerBasePrices).Error
@@ -154,8 +154,9 @@ func (l *LeagueService) CreateLeague(league CreateLeagueRequestBody) error {
 	// {league_id}_{player_id} is the key and value is the pair of <timestamp, points>
 	for _, player := range playerBasePrices {
 		key := "players_" + leagueID + "_" + player.PlayerID
-		timestamp := time.Now().Unix()
-		value := fmt.Sprintf("%d,%d", timestamp, player.BasePrice)
+		now := time.Now()
+		timestamp := now.Format("2006-01-02 15:04:05.000000-07")
+		value := fmt.Sprintf("%s,%.2f", timestamp, player.BasePrice)
 		err = l.KV.RPush(key, value)
 		if err != nil {
 			return fmt.Errorf("error inserting into KV store: %v", err)
@@ -206,6 +207,8 @@ func (l *LeagueService) RegisterToLeague(user_id int, league_id string) error {
 		return err
 	}
 
+	//TODO: if user already registered for the league return error
+
 	// Check if the league is full
 	if league.Registered == league.Capacity {
 		return fmt.Errorf("league is full")
@@ -232,7 +235,6 @@ func (l *LeagueService) RegisterToLeague(user_id int, league_id string) error {
 	newRegisteredUsers := strings.TrimPrefix(league.UsersRegistered+fmt.Sprintf(",%d", user_id), ",")
 	league.Registered = league.Registered + 1
 
-	// TODO: @anveshreddy18 : Need to relook on whether to update the league_status here or where the league is started.
 	// Update the users_registered,registered column in the leagues table
 
 	err = l.DB.Table("leagues").Where("league_id = ?", league_id).Updates(map[string]interface{}{"registered": league.Registered, "users_registered": newRegisteredUsers}).Error
@@ -242,14 +244,14 @@ func (l *LeagueService) RegisterToLeague(user_id int, league_id string) error {
 	}
 
 	// Also add the user to the purse table
-	err = l.DB.Table("purse").Create(map[string]interface{}{"user_id": user_id, "league_id": league_id, "remaining_purse": 10000}).Error
+	err = l.DB.Table("purse").Create(map[string]interface{}{"user_id": user_id, "league_id": league_id, "remaining_purse": 10000.00}).Error
 
 	if err != nil {
 		return fmt.Errorf("error updating purse: %v", err)
 	}
 
 	// Add balance in cache
-	err = l.KV.Set(fmt.Sprintf("purse_%d_%s", user_id, league_id), 10000)
+	err = l.KV.Set(fmt.Sprintf("purse_%d_%s", user_id, league_id), 10000.00)
 	if err != nil {
 		return fmt.Errorf("error updating cache: %v", err)
 	}
