@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kridavyuha/api-server/internals/trade"
@@ -22,7 +24,6 @@ type BallByBall struct {
 // We need to update the time sereies data for the player in redis cache.
 func (app *App) BallPicker(data []byte) {
 
-	fmt.Println(app.WS)
 	var ballDetails BallByBall
 	if !json.Valid(data) {
 		fmt.Println("Invalid JSON data")
@@ -69,7 +70,6 @@ func (app *App) BallPicker(data []byte) {
 	// so we need to update points for each league seperately
 
 	// get all the leagues_id for this respective match_id
-	fmt.Println("MatchID:", ballDetails.MatchID)
 	var leagues []string
 	app.DB.Raw("SELECT league_id FROM leagues WHERE match_id = ?", ballDetails.MatchID).Scan(&leagues)
 
@@ -78,50 +78,40 @@ func (app *App) BallPicker(data []byte) {
 		tableName := "players_" + league
 		//TODO: Update the points for each player in the league in seperate	go routine
 		for playerID, points := range ballDetails.Player {
-			fmt.Println("PlayerID:", playerID, "Points:", points, "Table name: ", tableName)
-			tx := app.DB.Exec("UPDATE "+tableName+" SET cur_price = cur_price + ? WHERE player_id = ?", points, playerID)
-			if tx.Error != nil {
-				// Log the error instead of writing to the response writer
-				// as we are in a goroutine and cannot write to the response writer
-				fmt.Println("Error updating points for league:", league, "player:", playerID, "error:", tx.Error)
-			}
-		}
-	}
-
-	for _, league := range leagues {
-		for playerID, points := range ballDetails.Player {
 			key := "players_" + league + "_" + playerID
-			// This way if we miss any points in entry to redis cache , we may get wrong points while cal from prev points.
-			// DB points will be correct but redis cache points will be wrong.
-			// TODO: Can we have a cron job to update the redis cache points from DB points? Seems like this whole job of running it ball by ball is heavy.
+			err := app.DB.Exec("UPDATE "+tableName+" SET cur_price = cur_price + ?, last_updated = ? WHERE player_id = ?", float64(points), time.Now(), playerID).Error
+			if err != nil {
+				fmt.Println("Error updating points for player:", playerID, "error:", err)
+			}
 			lastEntry, err := app.KVStore.LIndex(key, -1)
 			if err != nil {
 				fmt.Println("Error fetching last entry from redis cache for player:", playerID, "error:", err)
 			}
 
-			var lastPoints int
+			var lastPoints float64
 			if lastEntry != "" {
-				var timestamp int
-				_, err = fmt.Sscanf(lastEntry, "%d,%d", &timestamp, &lastPoints)
+				val := strings.Split(lastEntry, ",")
+				lastPoints, err = strconv.ParseFloat(val[1], 64)
 				if err != nil {
-					fmt.Println("Error parsing last entry from redis cache for player:", playerID, "error:", err)
-					continue
+					fmt.Println("Error parsing points from redis cache for player:", playerID, "error:", err)
 				}
+			} else {
+				//TODO: Load the base price from DB
 			}
 
-			points += lastPoints
-			timestamp := time.Now().Unix()
-			value := fmt.Sprintf("%d,%d", timestamp, points)
+			newPoints := float64(points) + lastPoints
+
+			now := time.Now()
+
+			timestamp := now.Format("2006-01-02 15:04:05.000000-07")
+
+			value := fmt.Sprintf("%s,%.2f", timestamp, newPoints)
 			err = app.KVStore.RPush(key, value)
 			if err != nil {
 				fmt.Println("Error writing to redis cache for player:", playerID, "error:", err)
 			}
 		}
 	}
-
-	// Write to redis cache
-
-	// w.Write([]byte("Points received"))
 }
 
 // Get points for a player from redis cache for a league
@@ -134,7 +124,7 @@ func (app *App) GetPointsPlayerWise(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	points, err := trade.New(app.KVStore, app.DB).GetTimeseriesPlayerPoints(playerID, leagueID)
+	points, err := trade.New(app.KVStore, app.DB, app.MQConn).GetTimeseriesPlayerPoints(playerID, leagueID)
 
 	if err != nil {
 		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: err.Error()})
