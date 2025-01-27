@@ -30,7 +30,7 @@ func (app *App) TransactPlayers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = trade.New(app.KVStore, app.DB).Transaction(transactionType, playerId, leagueId, userId, transactionDetails)
+	err = trade.New(app.KVStore, app.DB, app.MQConn).Transaction(transactionType, playerId, leagueId, userId, transactionDetails)
 
 	if err != nil {
 		sendResponse(w, httpResp{Status: http.StatusBadRequest, IsError: true, Error: err.Error()})
@@ -104,7 +104,7 @@ func (app *App) Trade(w http.ResponseWriter, r *http.Request) {
 		sendResponse(w, httpResp{Status: http.StatusBadRequest, IsError: true, Error: "league_id is required"})
 	}
 
-	playerDetails, err := trade.New(app.KVStore, app.DB).GetPlayerDetails(league_id, userID)
+	playerDetails, err := trade.New(app.KVStore, app.DB, app.MQConn).GetPlayerDetails(league_id, userID)
 
 	if err != nil {
 		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: err.Error()})

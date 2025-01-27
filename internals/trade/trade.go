@@ -3,9 +3,11 @@ package trade
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
+	"github.com/kridavyuha/api-server/internals/cache"
 	"github.com/kridavyuha/api-server/pkg/kvstore"
 	amqp "github.com/rabbitmq/amqp091-go"
 
@@ -19,10 +21,17 @@ type TradeService struct {
 	Conn *amqp.Connection
 }
 
-func New(kv kvstore.KVStore, db *gorm.DB) *TradeService {
+func New(kv kvstore.KVStore, db *gorm.DB, conn *amqp.Connection) *TradeService {
 	return &TradeService{
-		KV: kv,
-		DB: db,
+		KV:   kv,
+		DB:   db,
+		Conn: conn,
+	}
+}
+
+func failOnError(err error, msg string) {
+	if err != nil {
+		log.Panicf("%s: %s", msg, err)
 	}
 }
 
@@ -34,35 +43,41 @@ func (ts *TradeService) getPlayerPriceList(leagueId, playerId string) ([]string,
 	}
 
 	if len(players) == 0 {
-		// TODO: load the table data into cache.
-		// If the player is not found in the cache, get the player details from the players table
-		// Load players from the players table to the cache
-		// If the player is not found in the players table, return an error
-		return nil, fmt.Errorf("player not found")
+
+		players, err = cache.New(ts.DB, ts.KV).LoadPlayerData(leagueId, playerId)
+		if err != nil {
+			return nil, err
+		}
+
 	}
 	return players, nil
 }
 
 func (ts *TradeService) getPurse(userId int, leagueId string) (float64, error) {
+
+	var userBalance float64
+
 	balanceStr, err := ts.KV.Get("purse_" + strconv.Itoa(userId) + "_" + leagueId)
+
 	if err != nil {
 		if err == redis.Nil {
-			// TODO: load table data into cache
-			// Load the purse from the table to cache
-			// if not in table return err.
+			userBalance, err = cache.New(ts.DB, ts.KV).LoadUserBalance(leagueId, strconv.Itoa(userId))
+			if err != nil {
+				return 0, err
+			}
 		} else {
 			return 0, err
 		}
 	}
 
-	balance, err := strconv.ParseFloat(balanceStr, 64)
+	userBalance, err = strconv.ParseFloat(balanceStr, 64)
 	if err != nil {
 		return 0, err
 	}
-	return balance, nil
+	return userBalance, nil
 }
 
-func (ts *TradeService) getCurPrice(league_id string, player_id string) (int, string, error) {
+func (ts *TradeService) getCurPrice(league_id string, player_id string) (float64, string, error) {
 
 	playerData, err := ts.getPlayerPriceList(league_id, player_id)
 	if err != nil {
@@ -74,14 +89,14 @@ func (ts *TradeService) getCurPrice(league_id string, player_id string) (int, st
 		return 0, "", fmt.Errorf("invalid data format for price and timestamp")
 	}
 
-	price, err := strconv.Atoi(TsAndPrice[1])
+	price, err := strconv.ParseFloat(TsAndPrice[1], 64)
 	if err != nil {
 		return 0, "", err
 	}
 	return price, TsAndPrice[0], nil
 }
 
-func (ts *TradeService) getBasePrice(league_id string, player_id string) (int, error) {
+func (ts *TradeService) getBasePrice(league_id string, player_id string) (float64, error) {
 	playerData, err := ts.getPlayerPriceList(league_id, player_id)
 	if err != nil {
 		return 0, err
@@ -92,7 +107,7 @@ func (ts *TradeService) getBasePrice(league_id string, player_id string) (int, e
 		return 0, fmt.Errorf("invalid data format for price and timestamp")
 	}
 
-	price, err := strconv.Atoi(TsAndPrice[1])
+	price, err := strconv.ParseFloat(TsAndPrice[1], 64)
 	if err != nil {
 		return 0, err
 	}
@@ -100,9 +115,6 @@ func (ts *TradeService) getBasePrice(league_id string, player_id string) (int, e
 }
 
 func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, userId int, transactionDetails TransactionDetails) error {
-
-	// Here we simultaneously update the transactions, purse and portfolio tables in db and cache for consistency
-	// the purchase rate will be calculated by the core service once the transaction is successful this will be sent to queue.
 
 	players, err := ts.getPlayerPriceList(leagueId, playerId)
 	if err != nil {
@@ -132,26 +144,29 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 	_, err = ts.KV.HGet("portfolio_"+strconv.Itoa(userId)+"_"+leagueId, "is_cached")
 	if err != nil {
 		if err == redis.Nil {
-			//TODO: fetch the portfolio from the table and load it into cache, along side is_cached active
+			err = cache.New(ts.DB, ts.KV).LoadUserPortfolioData(leagueId, strconv.Itoa(userId))
+			if err != nil {
+				return err
+			}
 		} else {
 			return err
 		}
 	}
-	sharesInvestedStr, err := ts.KV.HGet("portfolio_"+strconv.Itoa(userId)+"_"+leagueId, playerId)
+	sharesAndAvgPriceStr, err := ts.KV.HGet("portfolio_"+strconv.Itoa(userId)+"_"+leagueId, playerId)
 
 	switch {
 	case err == redis.Nil:
-		sharesInvestedStr = "0,0"
+		sharesAndAvgPriceStr = "0,0"
 	case err != nil:
 		return err
 	}
 
-	sharesInvested := strings.Split(sharesInvestedStr, ",")
-	if len(sharesInvested) != 2 {
+	sharesAndAvgPrice := strings.Split(sharesAndAvgPriceStr, ",")
+	if len(sharesAndAvgPrice) != 2 {
 		return fmt.Errorf("invalid data format for shares and invested")
 	}
 
-	ownedShares, err = strconv.Atoi(sharesInvested[0])
+	ownedShares, err = strconv.Atoi(sharesAndAvgPrice[0])
 	if err != nil {
 		return err
 	}
@@ -178,7 +193,7 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 		"shares":           transactionDetails.Shares,
 	}
 
-	err = ts.PushTransaction(transactionData)
+	err = ts.PublishTransaction(transactionData)
 	if err != nil {
 		return err
 	}
@@ -186,24 +201,24 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 	return nil
 }
 
-func (ts *TradeService) PushTransaction(transactionData map[string]interface{}) error {
+func (ts *TradeService) PublishTransaction(transactionData map[string]interface{}) error {
 	// This function will be called by the core service to push the transaction to the queue
 	// Create a channel
+	fmt.Println("Publishing transaction to the queue")
 	ch, err := ts.Conn.Channel()
 	if err != nil {
 		return fmt.Errorf("error creating channel: %s", err)
 	}
-	_, err = ch.QueueDeclare(
-		"txns", // name
-		false,  // durable
-		false,  // delete when unused
-		true,   // exclusive
-		false,  // no-wait
-		nil,    // arguments
+	err = ch.ExchangeDeclare(
+		"txns",   // name
+		"direct", // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
 	)
-	if err != nil {
-		return fmt.Errorf("error declaring queue: %s", err)
-	}
+	failOnError(err, "Failed to declare an exchange")
 
 	defer ch.Close()
 
@@ -214,10 +229,10 @@ func (ts *TradeService) PushTransaction(transactionData map[string]interface{}) 
 	}
 
 	err = ch.Publish(
-		"",     // exchange
-		"txns", // routing key
-		false,  // mandatory
-		false,  // immediate
+		"txns",                                // exchange
+		transactionData["league_id"].(string), // routing key
+		false,                                 // mandatory
+		false,                                 // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        transactionJSON,
@@ -234,11 +249,17 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 
 	playerDetails := make([]GetPlayerDetails, 0)
 
-	// Get the player details from the players_{league_id} table
-	// TODO: If this list size is 0 load it from table.
 	players, err := ts.KV.Keys("players_" + leagueId + "*")
 	if err != nil {
 		return playerDetails, err
+	}
+
+	if len(players) == 0 {
+		// load from table and cache it
+		err := cache.New(ts.DB, ts.KV).LoadPlayers(leagueId)
+		if err != nil {
+			return playerDetails, err
+		}
 	}
 
 	for _, player := range players {
@@ -280,10 +301,24 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 		playerDetails[i].Team = playerData.Team
 	}
 
-	// Get the share details from the portfolio_{user_id}_{league_id} hash map
 	portfolio, err := ts.KV.HGetAll("portfolio_" + strconv.Itoa(userId) + "_" + leagueId)
+
 	if err != nil {
-		return playerDetails, err
+		switch {
+		case err == redis.Nil:
+			// load from table and cache it
+			err := cache.New(ts.DB, ts.KV).LoadUserPortfolioData(leagueId, strconv.Itoa(userId))
+			if err != nil {
+				return nil, err
+			}
+			portfolio, err = ts.KV.HGetAll("portfolio_" + strconv.Itoa(userId) + "_" + leagueId)
+			if err != nil {
+				return nil, err
+			}
+
+		default:
+			return playerDetails, err
+		}
 	}
 
 	for i, player := range playerDetails {
