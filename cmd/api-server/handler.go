@@ -24,9 +24,8 @@ func (app *App) initHandlers() {
 
 	app.R.Get("/leaderboard", app.Middleware(http.HandlerFunc(app.GetLeaderboard)))
 
-	// app.R.Post("/points", app.)
-	app.R.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World"))
+	app.R.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("I am Healthy"))
 	})
 
 }
