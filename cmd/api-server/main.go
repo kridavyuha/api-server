@@ -42,7 +42,7 @@ func main() {
 	r := chi.NewRouter()
 	// CORS middleware configuration
 	r.Use(cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://main.d2j3qqk7sh27x4.amplifyapp.com/"}, // Your frontend URL
+		AllowedOrigins:   []string{"https://main.d2j3qqk7sh27x4.amplifyapp.com"}, // Your frontend URL
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},

@@ -53,6 +53,7 @@ CREATE TABLE users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+
 -- Create Purse table to store the remaining purse for each user in each league.
 CREATE TABLE purse (
     user_id INT NOT NULL,
