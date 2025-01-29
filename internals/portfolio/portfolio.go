@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kridavyuha/api-server/internals/cache"
 	"github.com/kridavyuha/api-server/pkg/kvstore"
 
 	"github.com/go-redis/redis/v8"
@@ -23,23 +24,28 @@ func New(kv kvstore.KVStore, db *gorm.DB) *PortfolioService {
 	}
 }
 
-func (ps *PortfolioService) getPurse(userId int, leagueId string) (int, error) {
+func (ps *PortfolioService) getPurse(userId int, leagueId string) (float64, error) {
+
+	var userBalance float64
+
 	balanceStr, err := ps.KV.Get("purse_" + strconv.Itoa(userId) + "_" + leagueId)
+
 	if err != nil {
 		if err == redis.Nil {
-			// TODO: load table data into cache
-			// Load the purse from the table to cache
-			// if not in table return err.
+			userBalance, err = cache.New(ps.DB, ps.KV).LoadUserBalance(leagueId, strconv.Itoa(userId))
+			if err != nil {
+				return 0, err
+			}
 		} else {
 			return 0, err
 		}
 	}
 
-	balance, err := strconv.Atoi(balanceStr)
+	userBalance, err = strconv.ParseFloat(balanceStr, 64)
 	if err != nil {
 		return 0, err
 	}
-	return balance, nil
+	return userBalance, nil
 }
 
 func (ps *PortfolioService) getPlayerPriceList(leagueId, playerId string) ([]string, error) {
@@ -50,16 +56,16 @@ func (ps *PortfolioService) getPlayerPriceList(leagueId, playerId string) ([]str
 	}
 
 	if len(players) == 0 {
-		// TODO: load the table data into cache.
-		// If the player is not found in the cache, get the player details from the players table
-		// Load players from the players table to the cache
-		// If the player is not found in the players table, return an error
-		return nil, fmt.Errorf("player not found")
+		players, err = cache.New(ps.DB, ps.KV).LoadPlayerData(leagueId, playerId)
+		if err != nil {
+			return nil, err
+		}
+
 	}
 	return players, nil
 }
 
-func (ps *PortfolioService) getCurPrice(league_id string, player_id string) (int, string, error) {
+func (ps *PortfolioService) getCurPrice(league_id string, player_id string) (float64, string, error) {
 	playerData, err := ps.getPlayerPriceList(league_id, player_id)
 	if err != nil {
 		return 0, "", err
@@ -75,7 +81,7 @@ func (ps *PortfolioService) getCurPrice(league_id string, player_id string) (int
 		return 0, "", fmt.Errorf("invalid data format for price and timestamp")
 	}
 
-	price, err := strconv.Atoi(TsAndPrice[1])
+	price, err := strconv.ParseFloat(TsAndPrice[1], 64)
 	if err != nil {
 		return 0, "", err
 	}
@@ -89,16 +95,7 @@ func (ps *PortfolioService) GetPortfolio(user_id int, league_id string) ([]Portf
 
 	if err != nil {
 		if err == redis.Nil {
-			var portfolioFromTable []Portfolio
-			err = ps.DB.Raw("SELECT player_id, shares, invested FROM portfolio WHERE user_id = ? AND league_id = ?", user_id, league_id).Scan(&portfolioFromTable).Error
-			if err != nil {
-				return nil, err
-			}
-			ps.KV.HSet("portfolio_"+strconv.Itoa(user_id)+"_"+league_id, "is_cached", "active")
-			for _, player := range portfolioFromTable {
-				portfolioData := strconv.Itoa(player.Shares) + "," + strconv.Itoa(player.Invested)
-				ps.KV.HSet("portfolio_"+strconv.Itoa(user_id)+"_"+league_id, player.PlayerId, portfolioData)
-			}
+			cache.New(ps.DB, ps.KV).LoadUserPortfolioData(league_id, strconv.Itoa(user_id))
 		} else {
 			return nil, err
 		}
@@ -112,8 +109,8 @@ func (ps *PortfolioService) GetPortfolio(user_id int, league_id string) ([]Portf
 		if key != "is_cached" {
 			data := strings.Split(value, ",")
 			shares, _ := strconv.Atoi(data[0])
-			invested, _ := strconv.Atoi(data[1])
-			portfolio = append(portfolio, Portfolio{PlayerId: key, Shares: shares, Invested: invested})
+			avg_price, _ := strconv.ParseFloat(data[1], 64)
+			portfolio = append(portfolio, Portfolio{PlayerId: key, Shares: shares, AvgPrice: avg_price})
 		}
 	}
 

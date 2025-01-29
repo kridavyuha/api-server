@@ -49,7 +49,7 @@ func (l *Leaderboard) GetLeaderboard(leagueId string) ([]score, error) {
 		score.Points = resp.Balance
 		// Now go through each player from this user's portfolio and get their worth
 		for _, player := range resp.Players {
-			score.Points += player.CurPrice * player.Shares
+			score.Points += player.CurPrice * float64(player.Shares)
 		}
 		l.DB.Raw("SELECT user_name FROM users WHERE user_id = ?", userid).Scan(&score.UserName)
 		scores = append(scores, *score)

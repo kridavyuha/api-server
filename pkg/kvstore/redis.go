@@ -13,7 +13,7 @@ type Redis struct {
 	client *redis.Client
 }
 
-func NewRedis(addr string, password string, db int) KVStore {
+func NewRedis(addr string, password string, db int) (KVStore, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
@@ -25,7 +25,7 @@ func NewRedis(addr string, password string, db int) KVStore {
 		log.Fatalf("Could not connect to Redis: %v", err)
 	}
 
-	return Redis{client: rdb}
+	return Redis{client: rdb}, err
 }
 
 func (r Redis) Set(key string, value interface{}) error {
