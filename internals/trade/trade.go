@@ -260,6 +260,10 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 		if err != nil {
 			return playerDetails, err
 		}
+		players, err = ts.KV.Keys("players_" + leagueId + "*")
+		if err != nil {
+			return playerDetails, err
+		}
 	}
 
 	for _, player := range players {
