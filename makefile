@@ -21,3 +21,16 @@ stop_redis:
 
 restart_redis: stop_redis start_redis
 
+start_mq:
+	docker run -d --name rabbitmq -p 5672:5672-p 15672:15672 rabbitmq:management
+
+stop_mq:
+	docker stop rabbitmq
+	docker rm rabbitmq
+
+restart_mq: stop_mq start_mq
+
+build_amd64:
+	GOOS=linux GOARCH=amd64 go build -o myapp_amd64 cmd/api-server/*.go
+
+

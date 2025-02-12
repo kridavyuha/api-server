@@ -28,3 +28,13 @@ make stop_redis
 make start_redis
 
 echo "Redis server started successfully."
+
+# Stop and remove existing mq container
+
+make stop_mq
+
+# start mq server
+
+make start_mq
+
+

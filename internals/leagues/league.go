@@ -26,8 +26,8 @@ func New(kv kvstore.KVStore, db *gorm.DB) *LeagueService {
 	}
 }
 
-func insertPlayerQuery(tableName, playerID string, basePrice, curPrice float64, lastChange string) string {
-	return fmt.Sprintf(`INSERT INTO %s (player_id, base_price, cur_price, last_change) VALUES ('%s', %f, %f, '%s');`, tableName, playerID, basePrice, curPrice, lastChange)
+func insertPlayerQuery(tableName, playerID string, basePrice, curPrice float64) string {
+	return fmt.Sprintf(`INSERT INTO %s (player_id, base_price, cur_price) VALUES ('%s', %f, %f);`, tableName, playerID, basePrice, curPrice)
 }
 
 func createTableQuery(tableName string) string {
@@ -36,7 +36,7 @@ func createTableQuery(tableName string) string {
         player_id VARCHAR(6) PRIMARY KEY,
         base_price FLOAT,
         cur_price FLOAT,
-		time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`, tableName)
 
 	return createTableQuery
@@ -133,7 +133,7 @@ func (l *LeagueService) CreateLeague(league CreateLeagueRequestBody) error {
 	fmt.Printf("Table created %s\n", tableName)
 	for _, player := range playerBasePrices {
 		fmt.Println(player)
-		err = l.DB.Exec(insertPlayerQuery(tableName, player.PlayerID, player.BasePrice, player.BasePrice, "neu")).Error
+		err = l.DB.Exec(insertPlayerQuery(tableName, player.PlayerID, player.BasePrice, player.BasePrice)).Error
 		if err != nil {
 			return fmt.Errorf("error inserting player: %v", err)
 		}
