@@ -1,9 +1,42 @@
 package main
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/gorilla/websocket"
+)
 
 func (app *App) initHandlers() {
 	app.R.Get("/ws", app.handleWebSocket)
+	app.R.Get("/ws/health", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("In ws handler ...")
+		var upgrader = websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			fmt.Println("Error is ", err)
+			http.Error(w, "Could not open websocket connection", http.StatusBadRequest)
+			return
+		}
+
+		fmt.Println("Connection established successfully")
+		defer conn.Close()
+
+		for {
+			time.Sleep(5 * time.Second)
+			err := conn.WriteMessage(websocket.TextMessage, []byte("I am healthy"))
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+		}
+
+	})
 
 	app.R.Post("/auth/login", app.Login)
 	app.R.Post("/auth/signup", app.SignUp)
