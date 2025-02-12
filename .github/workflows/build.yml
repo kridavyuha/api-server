@@ -28,7 +28,8 @@ jobs:
       
       - name: Install dependencies
         run: |
-          go get .
+          go mod download
+
       - name: Build code
         run: GOOS=linux GOARCH=amd64 go build -o myapp_amd64 cmd/api-server/*.go
       
