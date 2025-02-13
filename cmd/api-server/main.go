@@ -1,7 +1,11 @@
 package main
 
 import (
+	"fmt"
+
+	"github.com/kridavyuha/api-server/pkg/conf"
 	"github.com/kridavyuha/api-server/pkg/kvstore"
+	"github.com/spf13/viper"
 
 	"net/http"
 	"sync"
@@ -21,18 +25,21 @@ type App struct {
 	ClientsM sync.Mutex
 	KVStore  kvstore.KVStore
 	MQConn   *amqp.Connection
+	Config   *viper.Viper
 }
 
 func main() {
 
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	app := &App{
+		WS: make(map[*websocket.Conn]WSDetails),
+	}
+	app.Config = conf.Config(".")
+
+	conn, err := amqp.Dial(app.Config.GetString("App.QUEUE_URL"))
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
-	app := &App{
-		WS:     make(map[*websocket.Conn]WSDetails),
-		MQConn: conn,
-	}
+	app.MQConn = conn
 
 	db, err := app.initDB()
 	if err != nil {
@@ -41,8 +48,9 @@ func main() {
 
 	r := chi.NewRouter()
 	// CORS middleware configuration
+
 	r.Use(cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://main.d2j3qqk7sh27x4.amplifyapp.com"}, // Your frontend URL
+		AllowedOrigins:   app.Config.GetStringSlice("App.CORS_ALLOWED_ORIGINS"), // Your frontend URL
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
@@ -52,6 +60,7 @@ func main() {
 
 	app.DB = db
 	app.R = r
+	app.Config = conf.Config(".")
 
 	// create a map relation btw  player name and player_id
 	// app.initQueue()
@@ -59,7 +68,7 @@ func main() {
 	app.initKVStore()
 	app.initConsumer()
 
-	if err := http.ListenAndServe(":8080", r); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", app.Config.GetInt("app.SERVER_PORT")), r); err != nil {
 		panic(err)
 	}
 

@@ -36,6 +36,7 @@ func createTableQuery(tableName string) string {
         player_id VARCHAR(6) PRIMARY KEY,
         base_price FLOAT,
         cur_price FLOAT,
+		shares INT DEFAULT 250, 
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`, tableName)
 
