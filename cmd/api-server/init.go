@@ -17,8 +17,8 @@ func failOnError(err error, msg string) {
 }
 
 func (app *App) initDB() (*gorm.DB, error) {
-	dsn := "host=localhost user=postgres password=postgres dbname=db port=5432 sslmode=disable"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// initialize db
+	db, err := gorm.Open(postgres.Open(app.Config.GetString("App.DB_URL")), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func (app *App) initDB() (*gorm.DB, error) {
 
 func (app *App) initKVStore() error {
 	// initialize redis
-	kvstore, err := kvstore.NewRedis("localhost:6379", "", 0)
+	kvstore, err := kvstore.NewRedis(app.Config.GetString("App.REDIS_URL"), "", 0)
 	if err != nil {
 		fmt.Println("Error initializing KVStore: ", err)
 		return err
