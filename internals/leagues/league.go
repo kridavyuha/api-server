@@ -334,13 +334,34 @@ func (l *LeagueService) StartLeague(leagueID string) error {
 	return nil
 }
 
+func (l *LeagueService) CompleteLeague(leagueID string) error {
+
+	// Update the league status to 'completed'
+	err := l.DB.Table("leagues").Where("league_id = ?", leagueID).Updates(map[string]interface{}{"league_status": "completed"}).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // StartMatch function
 func (l *LeagueService) StartMatch(leagueID string) error {
 
 	// Make a Get Request to endpoint http://localhost:8081/scores?match_id={match_id} to get the scores of the match
+	// league status should be active before starting match ...
+	var status string
+	err := l.DB.Table("leagues").Select("league_status").Where("league_id = ?", leagueID).Scan(&status).Error
+	if err != nil {
+		return fmt.Errorf("error getting league status: %v", err)
+	}
+
+	if status != "active" {
+		return fmt.Errorf("league not active")
+	}
 
 	var matchID string
-	err := l.DB.Table("leagues").Where("league_id = ?", leagueID).Scan(&matchID).Error
+	err = l.DB.Table("leagues").Where("league_id = ?", leagueID).Scan(&matchID).Error
 	if err != nil {
 		return err
 	}
