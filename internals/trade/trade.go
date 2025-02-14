@@ -116,6 +116,17 @@ func (ts *TradeService) getBasePrice(league_id string, player_id string) (float6
 
 func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, userId int, transactionDetails TransactionDetails) error {
 
+	// Check leagues_status if active proceed else return error
+	var leagueStatus string
+	err := ts.DB.Table("leagues").Select("league_status").Where("league_id = ?", leagueId).Scan(&leagueStatus).Error
+	if err != nil {
+		return fmt.Errorf("error getting league status: %v", err)
+	}
+
+	if leagueStatus != "active" {
+		return fmt.Errorf("league not active, Transaction cannot be proccessed")
+	}
+
 	players, err := ts.getPlayerPriceList(leagueId, playerId)
 	if err != nil {
 		return err
