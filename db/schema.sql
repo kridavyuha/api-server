@@ -34,7 +34,7 @@ CREATE TABLE leagues (
     capacity INT NOT NULL DEFAULT 100,
     registered INT DEFAULT 0,
     users_registered TEXT DEFAULT '',
-    league_status VARCHAR(15) DEFAULT 'not started' CHECK (league_status IN ('active', 'completed', 'not started')),
+    league_status VARCHAR(15) DEFAULT 'not started' CHECK (league_status IN ('active', 'close', 'not started','open')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -55,10 +55,12 @@ CREATE TABLE users (
 
 
 -- Create Purse table to store the remaining purse for each user in each league.
+-- also add remaining transactions here
 CREATE TABLE purse (
     user_id INT NOT NULL,
     league_id VARCHAR(100) NOT NULL,
     remaining_purse FLOAT DEFAULT 10000,
+    remaining_transactions INT DEFAULT 25,
     PRIMARY KEY (user_id, league_id),
     FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
