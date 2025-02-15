@@ -334,6 +334,7 @@ func (l *LeagueService) StartLeague(leagueID string) error {
 	return nil
 }
 
+
 func (l *LeagueService) OpenLeague(leagueID string) error {
 
 	// Update the league status to 'opened'
@@ -349,6 +350,7 @@ func (l *LeagueService) CloseLeague(leagueID string) error {
 
 	// Update the league status to 'completed'
 	err := l.DB.Table("leagues").Where("league_id = ?", leagueID).Updates(map[string]interface{}{"league_status": "close"}).Error
+
 	if err != nil {
 		return err
 	}

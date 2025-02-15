@@ -94,6 +94,7 @@ func (app *App) CloseLeague(w http.ResponseWriter, r *http.Request) {
 
 	// Update the league status to 'completed'
 	err := leagues.New(app.KVStore, app.DB).CloseLeague(leagueID)
+
 	if err != nil {
 		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: err.Error()})
 		return
