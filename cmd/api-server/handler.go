@@ -46,9 +46,10 @@ func (app *App) initHandlers() {
 	app.R.Get("/leagues", app.Middleware(http.HandlerFunc(app.GetLeagues)))
 	app.R.Get("/leagues/delete", app.Middleware(http.HandlerFunc(app.DeleteLeague)))
 	app.R.Post("/leagues/register", app.Middleware(http.HandlerFunc(app.RegisterLeague)))
-	app.R.Get("/leagues/open", app.Middleware(http.HandlerFunc(app.OpenLeague)))
-	app.R.Get("/leagues/close", app.Middleware(http.HandlerFunc(app.CloseLeague)))
-	app.R.Get("/leagues/start", app.Middleware(http.HandlerFunc(app.StartLeague)))
+	app.R.Get("/leagues/open", http.HandlerFunc(app.OpenLeague))
+	app.R.Get("/leagues/close", http.HandlerFunc(app.CloseLeague))
+	app.R.Get("/leagues/start", http.HandlerFunc(app.StartLeague))
+
 
 	app.R.Post("/trade/transaction", app.Middleware(http.HandlerFunc(app.TransactPlayers)))
 	app.R.Get("/trade", app.Middleware(http.HandlerFunc(app.Trade)))

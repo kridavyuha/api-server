@@ -245,13 +245,13 @@ func (l *LeagueService) RegisterToLeague(user_id int, league_id string) error {
 	}
 
 	// Also add the user to the purse table
-	err = l.DB.Table("purse").Create(map[string]interface{}{"user_id": user_id, "league_id": league_id, "remaining_purse": 10000.00}).Error
+	err = l.DB.Table("purse").Create(map[string]interface{}{"user_id": user_id, "league_id": league_id, "remaining_purse": 10000.00, "remaining_transactions": 25}).Error
 
 	if err != nil {
 		return fmt.Errorf("error updating purse: %v", err)
 	}
 
-	// Add balance in cache
+	// Add balance and remainning transactions to the cache
 	err = l.KV.Set(fmt.Sprintf("purse_%d_%s", user_id, league_id), 10000.00)
 	if err != nil {
 		return fmt.Errorf("error updating cache: %v", err)
@@ -334,10 +334,23 @@ func (l *LeagueService) StartLeague(leagueID string) error {
 	return nil
 }
 
-func (l *LeagueService) CompleteLeague(leagueID string) error {
+
+func (l *LeagueService) OpenLeague(leagueID string) error {
+
+	// Update the league status to 'opened'
+	err := l.DB.Table("leagues").Where("league_id = ?", leagueID).Updates(map[string]interface{}{"league_status": "open"}).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *LeagueService) CloseLeague(leagueID string) error {
 
 	// Update the league status to 'completed'
-	err := l.DB.Table("leagues").Where("league_id = ?", leagueID).Updates(map[string]interface{}{"league_status": "completed"}).Error
+	err := l.DB.Table("leagues").Where("league_id = ?", leagueID).Updates(map[string]interface{}{"league_status": "close"}).Error
+
 	if err != nil {
 		return err
 	}
