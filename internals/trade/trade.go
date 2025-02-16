@@ -116,6 +116,7 @@ func (ts *TradeService) getBasePrice(league_id string, player_id string) (float6
 
 func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, userId int, transactionDetails TransactionDetails) error {
 
+	fmt.Println("Transaction type: ", transactionType)
 	// Check leagues_status if active proceed else return error
 	var leagueStatus string
 	err := ts.DB.Table("leagues").Select("league_status").Where("league_id = ?", leagueId).Scan(&leagueStatus).Error
@@ -123,7 +124,7 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 		return fmt.Errorf("error getting league status: %v", err)
 	}
 
-	if leagueStatus != "active" {
+	if leagueStatus != "active" && leagueStatus != "open" {
 		return fmt.Errorf("league not active, Transaction cannot be proccessed")
 	}
 
@@ -204,6 +205,8 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 		"shares":           transactionDetails.Shares,
 	}
 
+	fmt.Println("Publishing transaction to the queue .. ", transactionData)
+
 	err = ts.PublishTransaction(transactionData)
 	if err != nil {
 		return err
@@ -240,10 +243,10 @@ func (ts *TradeService) PublishTransaction(transactionData map[string]interface{
 	}
 
 	err = ch.Publish(
-		"txns",                                // exchange
-		transactionData["league_id"].(string), // routing key
-		false,                                 // mandatory
-		false,                                 // immediate
+		"txns", // exchange
+		fmt.Sprintf("league.%s", transactionData["league_id"].(string)), // routing key
+		false, // mandatory
+		false, // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        transactionJSON,
