@@ -24,28 +24,21 @@ func New(kv kvstore.KVStore, db *gorm.DB) *PortfolioService {
 	}
 }
 
-func (ps *PortfolioService) getPurse(userId int, leagueId string) (float64, error) {
-
-	var userBalance float64
-
-	balanceStr, err := ps.KV.Get("purse_" + strconv.Itoa(userId) + "_" + leagueId)
+func (ps *PortfolioService) getPurse(userId int, leagueId string) (string, error) {
+	balanceAndRemainingTxnsStr, err := ps.KV.Get("purse_" + strconv.Itoa(userId) + "_" + leagueId)
 
 	if err != nil {
 		if err == redis.Nil {
-			userBalance, err = cache.New(ps.DB, ps.KV).LoadUserBalance(leagueId, strconv.Itoa(userId))
+			_, err = cache.New(ps.DB, ps.KV).LoadUserBalance(leagueId, strconv.Itoa(userId))
 			if err != nil {
-				return 0, err
+				return "0", err
 			}
 		} else {
-			return 0, err
+			return "0", err
 		}
 	}
 
-	userBalance, err = strconv.ParseFloat(balanceStr, 64)
-	if err != nil {
-		return 0, err
-	}
-	return userBalance, nil
+	return balanceAndRemainingTxnsStr, nil
 }
 
 func (ps *PortfolioService) getPlayerPriceList(leagueId, playerId string) ([]string, error) {
@@ -146,7 +139,12 @@ func (ps *PortfolioService) GetDetailedPortfolio(user_id int, league_id string) 
 	if err != nil {
 		return detailedPortfolio, err
 	}
-	detailedPortfolio.Balance = balance
+
+	balanceFloat, err := strconv.ParseFloat(strings.Split(balance, ",")[0], 64)
+	if err != nil {
+		return detailedPortfolio, err
+	}
+	detailedPortfolio.Balance = balanceFloat
 	detailedPortfolio.Players = portfolio
 
 	return detailedPortfolio, nil
