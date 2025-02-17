@@ -341,6 +341,19 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 		}
 	}
 
+	_, err = ts.KV.Get("purse_" + strconv.Itoa(userId) + "_" + leagueId)
+	if err != nil {
+		switch {
+		case err == redis.Nil:
+			_, err = cache.New(ts.DB, ts.KV).LoadUserBalanceAndRemainingTxns(leagueId, strconv.Itoa(userId))
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return playerDetails, err
+		}
+	}
+
 	for i, player := range playerDetails {
 		if shares, ok := portfolio[player.PlayerID]; ok {
 			sharesInvested := strings.Split(shares, ",")
