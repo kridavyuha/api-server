@@ -29,7 +29,7 @@ func (ps *PortfolioService) getPurse(userId int, leagueId string) (string, error
 
 	if err != nil {
 		if err == redis.Nil {
-			_, err = cache.New(ps.DB, ps.KV).LoadUserBalance(leagueId, strconv.Itoa(userId))
+			balanceAndRemainingTxnsStr, err = cache.New(ps.DB, ps.KV).LoadUserBalanceAndRemainingTxns(leagueId, strconv.Itoa(userId))
 			if err != nil {
 				return "0", err
 			}

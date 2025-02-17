@@ -45,26 +45,33 @@ func (c *CacheService) LoadPlayerData(league_id, player_id string) ([]string, er
 
 }
 
-func (c *CacheService) LoadUserBalance(league_id, user_id string) (float64, error) {
+func (c *CacheService) LoadUserBalanceAndRemainingTxns(league_id, user_id string) (string, error) {
 	// get user balance from the database
-	var balance float64
 
-	err := c.DB.Table("purse").Select("remaining_purse").Where("user_id = ? and league_id = ?", user_id, league_id).Scan(&balance).Error
-	if err != nil {
-		return 0, err
+	var result struct {
+		RemainingPurse        float64
+		RemainingTransactions int
 	}
+
+	err := c.DB.Table("purse").Select("remaining_purse", "remaining_transactions").Where("user_id = ? and league_id = ?", user_id, league_id).Scan(&result).Error
+	if err != nil {
+		return "0", err
+	}
+
+	balance := result.RemainingPurse
+	remainingTxns := result.RemainingTransactions
 
 	// insert into redis cache
 	key := "purse_" + user_id + "_" + league_id
-	value := fmt.Sprintf("%.2f", balance)
+	value := fmt.Sprintf("%.2f,%d", balance, remainingTxns)
 
 	err = c.KV.Set(key, value)
 
 	if err != nil {
-		return 0, err
+		return "0", err
 	}
 
-	return balance, nil
+	return value, nil
 }
 
 func (c *CacheService) LoadUserPortfolioData(league_id, user_id string) error {

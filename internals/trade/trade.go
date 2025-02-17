@@ -60,7 +60,7 @@ func (ts *TradeService) getPurse(userId int, leagueId string) (string, error) {
 
 	if err != nil {
 		if err == redis.Nil {
-			_, err = cache.New(ts.DB, ts.KV).LoadUserBalance(leagueId, strconv.Itoa(userId))
+			balanceAndRemainingTxnsStr, err = cache.New(ts.DB, ts.KV).LoadUserBalanceAndRemainingTxns(leagueId, strconv.Itoa(userId))
 			if err != nil {
 				return "0", err
 			}
@@ -111,14 +111,12 @@ func (ts *TradeService) getBasePrice(league_id string, player_id string) (float6
 
 func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, userId int, transactionDetails TransactionDetails) error {
 
-
 	// Check leagues_status if active proceed else return error
 	var leagueStatus string
 	err := ts.DB.Table("leagues").Select("league_status").Where("league_id = ?", leagueId).Scan(&leagueStatus).Error
 	if err != nil {
 		return fmt.Errorf("error getting league status: %v", err)
 	}
-
 
 	if leagueStatus != "active" && leagueStatus != "open" {
 		return fmt.Errorf("league not active, Transaction cannot be proccessed")
