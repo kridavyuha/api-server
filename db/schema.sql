@@ -78,6 +78,15 @@ CREATE TABLE portfolio (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
+-- DROP primary key on portfolio
+ALTER TABLE portfolio
+DROP CONSTRAINT portfolio_pkey;
+
+ALTER TABLE portfolio
+ADD PRIMARY KEY (user_id, league_id, player_id);
+
+
+
 -- Create a table to store the transactions of the users.
 -- As this is a bit rarely acccessed table, we can keep it in the same table.
 Create Table transactions (

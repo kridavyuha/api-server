@@ -113,3 +113,21 @@ func (app *App) Trade(w http.ResponseWriter, r *http.Request) {
 
 	sendResponse(w, httpResp{Status: http.StatusOK, Data: playerDetails})
 }
+
+func (app *App) GetTxns(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(int)
+
+	league_id := r.URL.Query().Get("league_id")
+	if league_id == "" {
+		sendResponse(w, httpResp{Status: http.StatusBadRequest, IsError: true, Error: "league_id is required"})
+	}
+
+	txns, err := trade.New(app.KVStore, app.DB, app.MQConn).GetRemainingTxns(userID, league_id)
+
+	if err != nil {
+		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: err.Error()})
+		return
+	}
+
+	sendResponse(w, httpResp{Status: http.StatusOK, Data: txns})
+}

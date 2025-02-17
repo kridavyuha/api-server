@@ -54,6 +54,7 @@ func (app *App) initHandlers() {
 	app.R.Post("/trade/transaction", app.Middleware(http.HandlerFunc(app.TransactPlayers)))
 	app.R.Get("/trade", app.Middleware(http.HandlerFunc(app.Trade)))
 	app.R.Get("/trade/points", app.Middleware(http.HandlerFunc(app.GetPointsPlayerWise)))
+	app.R.Get("/trade/txns", app.Middleware(http.HandlerFunc(app.GetTxns)))
 
 	app.R.Get("/profile", app.Middleware(http.HandlerFunc(app.GetProfile)))
 

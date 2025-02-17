@@ -51,6 +51,9 @@ func (l *Leaderboard) GetLeaderboard(leagueId string) ([]score, error) {
 		for _, player := range resp.Players {
 			score.Points += player.CurPrice * float64(player.Shares)
 		}
+		// round off the points to 2 decimal places
+		score.Points = float64(int(score.Points*100)) / 100
+
 		l.DB.Raw("SELECT user_name FROM users WHERE user_id = ?", userid).Scan(&score.UserName)
 		scores = append(scores, *score)
 	}
