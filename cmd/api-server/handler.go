@@ -50,6 +50,7 @@ func (app *App) initHandlers() {
 	app.R.Get("/leagues/close", http.HandlerFunc(app.CloseLeague))
 	app.R.Get("/leagues/start", http.HandlerFunc(app.StartLeague))
 
+
 	app.R.Post("/trade/transaction", app.Middleware(http.HandlerFunc(app.TransactPlayers)))
 	app.R.Get("/trade", app.Middleware(http.HandlerFunc(app.Trade)))
 	app.R.Get("/trade/points", app.Middleware(http.HandlerFunc(app.GetPointsPlayerWise)))
