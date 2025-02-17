@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kridavyuha/api-server/internals/cache"
 	"github.com/kridavyuha/api-server/pkg/kvstore"
@@ -53,28 +55,21 @@ func (ts *TradeService) getPlayerPriceList(leagueId, playerId string) ([]string,
 	return players, nil
 }
 
-func (ts *TradeService) getPurse(userId int, leagueId string) (float64, error) {
-
-	var userBalance float64
-
-	balanceStr, err := ts.KV.Get("purse_" + strconv.Itoa(userId) + "_" + leagueId)
+func (ts *TradeService) getPurse(userId int, leagueId string) (string, error) {
+	balanceAndRemainingTxnsStr, err := ts.KV.Get("purse_" + strconv.Itoa(userId) + "_" + leagueId)
 
 	if err != nil {
 		if err == redis.Nil {
-			userBalance, err = cache.New(ts.DB, ts.KV).LoadUserBalance(leagueId, strconv.Itoa(userId))
+			_, err = cache.New(ts.DB, ts.KV).LoadUserBalance(leagueId, strconv.Itoa(userId))
 			if err != nil {
-				return 0, err
+				return "0", err
 			}
 		} else {
-			return 0, err
+			return "0", err
 		}
 	}
 
-	userBalance, err = strconv.ParseFloat(balanceStr, 64)
-	if err != nil {
-		return 0, err
-	}
-	return userBalance, nil
+	return balanceAndRemainingTxnsStr, nil
 }
 
 func (ts *TradeService) getCurPrice(league_id string, player_id string) (float64, string, error) {
@@ -145,10 +140,17 @@ func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, 
 
 	// Get the user's balance from the purse table
 
-	userRemainingPoints, err := ts.getPurse(userId, leagueId)
+	userRemainingPointsAndRemainingTxnsStr, err := ts.getPurse(userId, leagueId)
 	if err != nil {
 		return err
 	}
+
+	userRemainingPointsStr := strings.Split(userRemainingPointsAndRemainingTxnsStr, ",")[0]
+	userRemainingPoints, err := strconv.ParseFloat(userRemainingPointsStr, 64)
+	if err != nil {
+		return err
+	}
+	userRemainingPoints = math.Round(userRemainingPoints*100) / 100
 
 	var ownedShares int
 
@@ -250,6 +252,7 @@ func (ts *TradeService) PublishTransaction(transactionData map[string]interface{
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        transactionJSON,
+			Timestamp:   time.Now(),
 		})
 
 	if err != nil {
@@ -415,4 +418,12 @@ func (ts *TradeService) UpdatePortfolio(transactionType string, userId int, play
 func (ts *TradeService) GetTimeseriesPlayerPoints(player_id, league_id string) ([]string, error) {
 	// Get the timeseries data from the players_{league_id}_{player_id} list
 	return ts.KV.LRange("players_"+league_id+"_"+player_id, 0, -1)
+}
+
+func (ts *TradeService) GetRemainingTxns(userId int, leagueId string) (string, error) {
+	balanceAndRemainingTxnsStr, err := ts.KV.Get("purse_" + strconv.Itoa(userId) + "_" + leagueId)
+	if err != nil {
+		return "", err
+	}
+	return strings.Split(balanceAndRemainingTxnsStr, ",")[1], nil
 }
