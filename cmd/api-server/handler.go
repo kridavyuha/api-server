@@ -49,7 +49,7 @@ func (app *App) initHandlers() {
 	app.R.Get("/leagues/open", http.HandlerFunc(app.OpenLeague))
 	app.R.Get("/leagues/close", http.HandlerFunc(app.CloseLeague))
 	app.R.Get("/leagues/start", http.HandlerFunc(app.StartLeague))
-
+	app.R.Get("/leagues/activate", http.HandlerFunc(app.ActivateLeague))
 
 	app.R.Post("/trade/transaction", app.Middleware(http.HandlerFunc(app.TransactPlayers)))
 	app.R.Get("/trade", app.Middleware(http.HandlerFunc(app.Trade)))
