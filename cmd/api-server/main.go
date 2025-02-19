@@ -67,6 +67,7 @@ func main() {
 	app.initHandlers()
 	app.initKVStore()
 	app.initConsumer()
+	app.initCoreProcessing()
 
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", app.Config.GetInt("app.SERVER_PORT")), r); err != nil {
 		panic(err)

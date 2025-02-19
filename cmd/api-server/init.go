@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
+	"github.com/kridavyuha/api-server/internals/leagues"
 	"github.com/kridavyuha/api-server/pkg/kvstore"
 
 	"gorm.io/driver/postgres"
@@ -86,6 +88,30 @@ func (app *App) initConsumer() {
 		for d := range msgs {
 			log.Printf(" [x] %s", d.Body)
 			app.BallPicker(d.Body)
+		}
+	}()
+
+}
+
+func (app *App) initCoreProcessing() {
+	// Fetch league status from db -> open/active -> Run this for every 30 sec
+	// Run a ticker
+	// for every 1 sec
+	fetchUpdatedScoresTicker := time.NewTicker(2 * time.Second)
+
+	go func() {
+		for {
+			select {
+			case <-fetchUpdatedScoresTicker.C:
+				// Fetch the leagues table from the database and get the leagues which are not in status 'active'
+				leagues, err := leagues.New(app.KVStore, app.DB).GetLeaguesGlobally()
+				if err != nil {
+					fmt.Println("Error fetching leagues from the database: ", err)
+					continue
+				}
+				// Now run through these leagues and get the cur price of each player from the map
+				app.HandleUpdateCorePrices(leagues)
+			}
 		}
 	}()
 
