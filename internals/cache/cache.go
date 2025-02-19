@@ -86,6 +86,10 @@ func (c *CacheService) LoadUserPortfolioData(league_id, user_id string) error {
 	key := "portfolio_" + user_id + "_" + league_id
 
 	err = c.KV.HSet(key, "is_cached", "active")
+	if err != nil {
+		fmt.Printf("Error setting key %s in redis cache: %v\n", key, err)
+		return err
+	}
 
 	// loop through the portfolio and insert into redis cache
 	for _, player := range portfolio {
