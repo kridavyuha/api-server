@@ -8,15 +8,33 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-redis/redis/v8"
+	"github.com/kridavyuha/api-server/internals/leagues"
 	"github.com/kridavyuha/api-server/internals/trade"
 
 	"github.com/gorilla/websocket"
 )
 
-type BallByBall struct {
-	MatchID     string         `json:"matchId"`
-	Player      map[string]int `json:"players"`
+// data that is being sent to websocket clients should be distunguished for
+// perffactor and coreprocessor
+
+type PerfDetails struct {
+	PerfFactor  map[string]int `json:"perf_factor"`
+	MatchID     string         `json:"match_id"`
 	IsCompleted bool           `json:"isCompleted"`
+}
+
+type CoreDetails struct {
+	//TODO: This might be chaned to map[string]float64
+	CoreFactor map[string]string `json:"core_factor"`
+	LeagueId   string            `json:"league_id"`
+}
+
+type PriceUpdate struct {
+	IsPerf      bool        `json:"is_perf"`
+	PerfDetails PerfDetails `json:"perf_details"`
+	IsCore      bool        `json:"is_core"`
+	CoreDetails CoreDetails `json:"core_details"`
 }
 
 // We get the points from the generator and update the points in the DB
@@ -24,19 +42,19 @@ type BallByBall struct {
 // We need to update the time sereies data for the player in redis cache.
 func (app *App) BallPicker(data []byte) {
 
-	var ballDetails BallByBall
+	var PerfDetails PerfDetails
 	if !json.Valid(data) {
 		fmt.Println("Invalid JSON data")
 		return
 	}
-	err := json.Unmarshal(data, &ballDetails)
+	err := json.Unmarshal(data, &PerfDetails)
 	if err != nil {
 		fmt.Println("Error unmarshalling data:", err)
 		return
 	}
 
 	// Check Match status:
-	if ballDetails.IsCompleted {
+	if PerfDetails.IsCompleted {
 		// Match is completed, close the websocket connections
 		//TODO: render frontend accordingly once the match is completed
 		app.ClientsM.Lock()
@@ -56,7 +74,20 @@ func (app *App) BallPicker(data []byte) {
 		//TODO: can we implement this through go routines ?
 		// check the match_id with that of the client
 
-		if val.MatchID == ballDetails.MatchID {
+		// create a priceupdate struct
+		priceUpdate := PriceUpdate{
+			IsPerf:      true,
+			PerfDetails: PerfDetails,
+			IsCore:      false,
+		}
+
+		data, err := json.Marshal(priceUpdate)
+		if err != nil {
+			fmt.Println("Error marshalling data:", err)
+			return
+		}
+
+		if val.MatchID == PerfDetails.MatchID {
 			err := conn.WriteMessage(websocket.TextMessage, data)
 			if err != nil {
 				conn.Close()
@@ -71,15 +102,15 @@ func (app *App) BallPicker(data []byte) {
 
 	// get all the leagues_id for this respective match_id
 	var leagues []string
-	app.DB.Raw("SELECT league_id FROM leagues WHERE match_id = ?", ballDetails.MatchID).Scan(&leagues)
+	app.DB.Raw("SELECT league_id FROM leagues WHERE match_id = ?", PerfDetails.MatchID).Scan(&leagues)
 
 	// Write to DB here
 	for _, league := range leagues {
 		tableName := "players_" + league
 		//TODO: Update the points for each player in the league in seperate	go routine
-		for playerID, points := range ballDetails.Player {
+		for playerID, points := range PerfDetails.PerfFactor {
 			key := "players_" + league + "_" + playerID
-			err := app.DB.Exec("UPDATE "+tableName+" SET cur_price = cur_price + ?, last_updated = ? WHERE player_id = ?", float64(points), time.Now(), playerID).Error
+			err := app.DB.Exec("UPDATE "+tableName+" SET cur_price = cur_price + ?, updated_at = ? WHERE player_id = ?", float64(points), time.Now(), playerID).Error
 			if err != nil {
 				fmt.Println("Error updating points for player:", playerID, "error:", err)
 			}
@@ -110,8 +141,90 @@ func (app *App) BallPicker(data []byte) {
 			if err != nil {
 				fmt.Println("Error writing to redis cache for player:", playerID, "error:", err)
 			}
+			// also update in players_<league_id>
+			app.KVStore.HSet("players_"+league, playerID, newPoints)
 		}
 	}
+}
+
+func (app *App) HandleUpdateCorePrices(Leagues []leagues.League) {
+	// loop over the websocket clients and send the updated prices
+	for _, league := range Leagues {
+		go func(league leagues.League) {
+			// get all the players for this league
+
+			_, err := app.KVStore.HGet("players_"+league.LeagueID, "cache_safe")
+			if err != nil {
+				switch {
+				case err == redis.Nil:
+					// get the data from the DB
+					var players []struct {
+						PlayerID string  `json:"player_id"`
+						CurPrice float64 `json:"cur_price"`
+					}
+					err := app.DB.Raw("SELECT player_id, cur_price FROM players_" + league.LeagueID).Scan(&players).Error
+					if err != nil {
+						fmt.Println("Error fetching players for league:", league.LeagueID, "error:", err)
+						return
+					}
+
+					for _, player := range players {
+						// put this data in the redis cache
+						err := app.KVStore.HSet("players_"+league.LeagueID, player.PlayerID, player.CurPrice)
+						if err != nil {
+							fmt.Println("Error writing to redis cache for league:", league.LeagueID, "error:", err)
+							return
+						}
+					}
+					app.KVStore.HSet("players_"+league.LeagueID, "cache_safe", true)
+
+				case err != nil:
+					fmt.Println("Error fetching cache_safe for league:", league.LeagueID, "error:", err)
+					return
+				}
+			}
+
+			// get the data from the redis cache
+			players, err := app.KVStore.HGetAll("players_" + league.LeagueID)
+			if err != nil {
+				fmt.Println("Error fetching players from redis cache for league:", league.LeagueID, "error:", err)
+				return
+			}
+
+			fmt.Println("Players:", players)
+			// Create Core details struct
+			coreDetails := CoreDetails{
+				CoreFactor: players,
+				LeagueId:   league.LeagueID,
+			}
+
+			priceUpdate := PriceUpdate{
+				IsPerf:      false,
+				IsCore:      true,
+				CoreDetails: coreDetails,
+			}
+
+			data, err := json.Marshal(priceUpdate)
+			if err != nil {
+				fmt.Println("Error marshalling data:", err)
+				return
+			}
+
+			app.ClientsM.Lock()
+			for conn, val := range app.WS {
+				if val.LeagueID == league.LeagueID {
+					// check the match_id with that of the client
+					// send the updated price to the client
+					err := conn.WriteMessage(websocket.TextMessage, data)
+					if err != nil {
+						conn.Close()
+					}
+				}
+			}
+			app.ClientsM.Unlock()
+		}(league)
+	}
+
 }
 
 // Get points for a player from redis cache for a league

@@ -194,6 +194,16 @@ func (l *LeagueService) GetLeagues(user_id int) ([]League, error) {
 	return leagues, nil
 }
 
+// GetLeaguesGlobally function
+func (l *LeagueService) GetLeaguesGlobally() ([]League, error) {
+	var leagues []League
+	err := l.DB.Table("leagues").Find(&leagues).Where("league_status IN ? ", []string{"open", "active"}).Error
+	if err != nil {
+		return nil, err
+	}
+	return leagues, nil
+}
+
 // RegisterToLeague function
 func (l *LeagueService) RegisterToLeague(user_id int, league_id string) error {
 
@@ -252,7 +262,7 @@ func (l *LeagueService) RegisterToLeague(user_id int, league_id string) error {
 	}
 
 	// Add balance and remainning transactions to the cache
-	err = l.KV.Set(fmt.Sprintf("purse_%d_%s", user_id, league_id), 10000.00)
+	err = l.KV.Set(fmt.Sprintf("purse_%d_%s", user_id, league_id), fmt.Sprintf("%d,%d", 10000, 25))
 	if err != nil {
 		return fmt.Errorf("error updating cache: %v", err)
 	}
@@ -334,7 +344,6 @@ func (l *LeagueService) StartLeague(leagueID string) error {
 	return nil
 }
 
-
 func (l *LeagueService) OpenLeague(leagueID string) error {
 
 	// Update the league status to 'opened'
@@ -374,7 +383,7 @@ func (l *LeagueService) StartMatch(leagueID string) error {
 	}
 
 	var matchID string
-	err = l.DB.Table("leagues").Where("league_id = ?", leagueID).Scan(&matchID).Error
+	err = l.DB.Table("leagues").Select("match_id").Where("league_id = ?", leagueID).Scan(&matchID).Error
 	if err != nil {
 		return err
 	}
@@ -382,6 +391,17 @@ func (l *LeagueService) StartMatch(leagueID string) error {
 	_, err = http.Get("http://localhost:8081/scores?match_id=" + matchID)
 	if err != nil {
 		return fmt.Errorf("error triggering webhook: %v", err)
+	}
+
+	return nil
+}
+
+func (l *LeagueService) ActivateLeague(leagueID string) error {
+
+	// Update the league status to 'active'
+	err := l.DB.Table("leagues").Where("league_id = ?", leagueID).Updates(map[string]interface{}{"league_status": "active"}).Error
+	if err != nil {
+		return err
 	}
 
 	return nil

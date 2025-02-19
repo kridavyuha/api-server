@@ -118,3 +118,20 @@ func (app *App) StartLeague(w http.ResponseWriter, r *http.Request) {
 
 	sendResponse(w, httpResp{Status: http.StatusOK, Data: map[string]interface{}{"message": "Match started successfully"}})
 }
+
+func (app *App) ActivateLeague(w http.ResponseWriter, r *http.Request) {
+	leagueID := r.URL.Query().Get("league_id")
+	if leagueID == "" {
+		sendResponse(w, httpResp{Status: http.StatusBadRequest, IsError: true, Error: "league_id is required"})
+		return
+	}
+
+	// Update the match status to 'started'
+	err := leagues.New(app.KVStore, app.DB).ActivateLeague(leagueID)
+	if err != nil {
+		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: err.Error()})
+		return
+	}
+
+	sendResponse(w, httpResp{Status: http.StatusOK, Data: map[string]interface{}{"message": "League activated successfully"}})
+}
