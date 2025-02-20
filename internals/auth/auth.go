@@ -50,6 +50,7 @@ func (a *AuthService) Login(loginDetails LoginRequestBody) (string, error) {
 	// Insert the token into the KV store {List of tokens for a user: Multiple devices}
 	err = a.KV.RPush("session_token_"+fmt.Sprintf("%d", user.UserID), token)
 	if err != nil {
+		fmt.Println("error inserting/creating session in cache, err: ", err)
 		return "", err
 	}
 	return token, nil
