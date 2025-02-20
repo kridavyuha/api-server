@@ -44,9 +44,10 @@ func (ns *NotificationService) GetNotifications(user_id int) ([]Notification, er
 
 	for _, notif := range details {
 		notification := Notification{
-			Actor:  1,
-			Status: notif.Status,
-			Id:     notif.Id,
+			Actor:     1,
+			Status:    notif.Status,
+			Id:        notif.Id,
+			CreatedAt: notif.CreatedAt,
 		}
 		if notif.EntityTypeId == 1 || notif.EntityTypeId == 2 {
 			notification.Entity = "transaction"
