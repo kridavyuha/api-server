@@ -3,12 +3,14 @@ package notification
 import "time"
 
 type Notification struct {
+
 	Id          int       `json:"id"`
 	Entity      string    `json:"entity"`
 	Actor       int       `json:"actor"`
 	Description string    `json:"description"`
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
+
 }
 
 type Transaction struct {
