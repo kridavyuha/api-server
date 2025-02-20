@@ -52,7 +52,9 @@ func (ns *NotificationService) GetNotifications(user_id int) ([]Notification, er
 			notification.Entity = "transaction"
 			// get the txn:
 			var transaction Transaction
+
 			err := ns.DB.Raw("SELECT T.shares, T.price, T.transaction_time, P.player_name from transactions as T join players as P on P.player_id = T.player_id  where T.id = ?", notif.EntityId).Scan(&transaction).Error
+
 			if err != nil {
 				return nil, err
 			}
