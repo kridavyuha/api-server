@@ -149,3 +149,18 @@ func (ps *PortfolioService) GetDetailedPortfolio(user_id int, league_id string) 
 
 	return detailedPortfolio, nil
 }
+
+func (ps *PortfolioService) GetActivePortfolios(user_id int) ([]DetailedPortfolio, error) {
+	// get all the active & open leagues
+	var portfolios []DetailedPortfolio
+	var leagues []int
+	err := ps.DB.Raw("SELECT league_id FROM leagues where league_status = ? OR league_status = ?","open","active").Scan(&leagues).Error
+
+	if err !=nil {
+		return nil, fmt.Errorf("error in selecting open and active leagues, err: %v", err)
+	}
+
+	
+
+	return portfolios, nil
+}

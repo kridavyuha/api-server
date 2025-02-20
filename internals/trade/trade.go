@@ -276,7 +276,7 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 		if err != nil {
 			return playerDetails, err
 		}
-		players, err = ts.KV.Keys("players_" + leagueId + "*")
+		players, err = ts.KV.Keys("players_" + leagueId + "_" + "*")
 		if err != nil {
 			return playerDetails, err
 		}
