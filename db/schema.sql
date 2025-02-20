@@ -72,24 +72,16 @@ CREATE TABLE portfolio (
     player_id VARCHAR(6) NOT NULL,
     shares INT DEFAULT 0,
     avg_price FLOAT DEFAULT 0,
-    PRIMARY KEY (user_id, league_id),
+    PRIMARY KEY (user_id, league_id, player_id),
     FOREIGN KEY (player_id) REFERENCES players(player_id),
     FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
--- DROP primary key on portfolio
-ALTER TABLE portfolio
-DROP CONSTRAINT portfolio_pkey;
-
-ALTER TABLE portfolio
-ADD PRIMARY KEY (user_id, league_id, player_id);
-
-
 
 -- Create a table to store the transactions of the users.
 -- As this is a bit rarely acccessed table, we can keep it in the same table.
-Create Table transactions (
+CREATE TABLE transactions (
     user_id INT NOT NULL,
     league_id VARCHAR(100) NOT NULL,
     player_id VARCHAR(6) NOT NULL,
@@ -101,6 +93,37 @@ Create Table transactions (
     FOREIGN KEY (league_id) REFERENCES leagues(league_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
+
+ALTER TABLE transactions ADD COLUMN id SERIAL PRIMARY KEY;
+
+CREATE TABLE notification_entities (
+    entity_type_id SERIAL PRIMARY KEY,
+    entity VARCHAR(25) CHECK (entity IN ('transaction', 'registration', 'result')),
+    description TEXT
+);
+
+INSERT INTO notification_entities (entity,description) VALUES ('transaction','User bought player stocks');
+INSERT INTO notification_entities (entity,description) VALUES ('transaction','User sold player stocks');
+
+
+CREATE TABLE notification_obj (
+    id SERIAL PRIMARY KEY,
+    entity_type_id INT ,
+    entity_id INT ,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (entity_type_id) REFERENCES notification_entities(entity_type_id) ON DELETE CASCADE
+);
+
+CREATE TABLE notification (
+    id SERIAL PRIMARY KEY,
+    notification_obj_id INT,
+    notifier_id INT,
+    actor_id INT,
+    status VARCHAR(6) CHECK  (status IN ('seen', 'unseen')),
+    FOREIGN KEY (notifier_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (actor_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 
 
 
