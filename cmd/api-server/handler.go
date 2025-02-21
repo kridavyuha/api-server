@@ -59,6 +59,7 @@ func (app *App) initHandlers() {
 	app.R.Get("/profile", app.Middleware(http.HandlerFunc(app.GetProfile)))
 
 	app.R.Get("/portfolio", app.Middleware(http.HandlerFunc(app.GetPortfolio)))
+	app.R.Get("/portfolio/active", app.Middleware(http.HandlerFunc(app.GetActivePortfolios)))
 
 	app.R.Get("/notifications", app.Middleware(http.HandlerFunc(app.HandleGetNotifications)))
 	app.R.Post("/notifications/update/status", app.Middleware(http.HandlerFunc(app.HandleUpdateNotificationStatus)))

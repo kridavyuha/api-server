@@ -23,3 +23,15 @@ func (app *App) GetPortfolio(w http.ResponseWriter, r *http.Request) {
 
 	sendResponse(w, httpResp{Status: http.StatusOK, Data: portfolio})
 }
+
+func (app *App) GetActivePortfolios(w http.ResponseWriter, r *http.Request) {
+	userId := r.Context().Value("user_id").(int)
+
+	portfolios, err := portfolio.New(app.KVStore, app.DB).GetActivePortfolios(userId)
+	if err != nil {
+		sendResponse(w, httpResp{Status: http.StatusInternalServerError, IsError: true, Error: err.Error()})
+		return
+	}
+
+	sendResponse(w, httpResp{Status: http.StatusOK, Data: portfolios})
+}
