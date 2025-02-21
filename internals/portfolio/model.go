@@ -13,3 +13,9 @@ type DetailedPortfolio struct {
 	Players []Portfolio `json:"players"`
 	Balance float64     `json:"balance"`
 }
+
+type ActivePortfolio struct {
+	Portfolio DetailedPortfolio `json:"portfolio"`
+	LeagueId  string            `json:"league_id"`
+	MatchId   string            `json:"match_id"`
+}
