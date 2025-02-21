@@ -26,7 +26,7 @@ func (c *CacheService) LoadPlayerData(league_id, player_id string) ([]string, er
 
 	var playerData PlayerInLeague
 
-	err := c.DB.Table(tableName).Select("cur_price, last_updated").Where("player_id = ?", player_id).Scan(&playerData).Error
+	err := c.DB.Table(tableName).Select("cur_price, updated_at").Where("player_id = ?", player_id).Scan(&playerData).Error
 	if err != nil {
 		return nil, err
 	}

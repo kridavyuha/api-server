@@ -145,22 +145,40 @@ func (ps *PortfolioService) GetDetailedPortfolio(user_id int, league_id string) 
 		return detailedPortfolio, err
 	}
 	detailedPortfolio.Balance = balanceFloat
+
 	detailedPortfolio.Players = portfolio
 
 	return detailedPortfolio, nil
 }
 
-func (ps *PortfolioService) GetActivePortfolios(user_id int) ([]DetailedPortfolio, error) {
+func (ps *PortfolioService) GetActivePortfolios(user_id int) ([]ActivePortfolio, error) {
 	// get all the active & open leagues
-	var portfolios []DetailedPortfolio
-	var leagues []int
-	err := ps.DB.Raw("SELECT league_id FROM leagues where league_status = ? OR league_status = ?","open","active").Scan(&leagues).Error
+	var portfolios []ActivePortfolio = make([]ActivePortfolio, 0)
+	type LeagueDetails struct {
+		LeagueId string `json:"league_id"`
+		MatchId  string `json:"match_id"`
+	}
+	var leaguedetails []LeagueDetails
+	err := ps.DB.Raw("SELECT league_id, match_id FROM leagues where league_status = ? OR league_status = ?", "open", "active").Scan(&leaguedetails).Error
 
-	if err !=nil {
+	if err != nil {
 		return nil, fmt.Errorf("error in selecting open and active leagues, err: %v", err)
 	}
 
-	
+	// active portfolios
+	for i := range leaguedetails {
+		detailedPorfolio, err := ps.GetDetailedPortfolio(user_id, leaguedetails[i].LeagueId)
+		if err != nil {
+			return nil, err
+		}
+		var portfolio ActivePortfolio
+		portfolio.Portfolio = detailedPorfolio
+		portfolio.LeagueId = leaguedetails[i].LeagueId
+		portfolio.MatchId = leaguedetails[i].MatchId
+
+		portfolios = append(portfolios, portfolio)
+	}
+
 
 	return portfolios, nil
 }
