@@ -179,5 +179,6 @@ func (ps *PortfolioService) GetActivePortfolios(user_id int) ([]ActivePortfolio,
 		portfolios = append(portfolios, portfolio)
 	}
 
+
 	return portfolios, nil
 }

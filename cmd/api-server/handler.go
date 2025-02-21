@@ -64,6 +64,9 @@ func (app *App) initHandlers() {
 	app.R.Get("/notifications", app.Middleware(http.HandlerFunc(app.HandleGetNotifications)))
 	app.R.Post("/notifications/update/status", app.Middleware(http.HandlerFunc(app.HandleUpdateNotificationStatus)))
 
+	app.R.Get("/notifications", app.Middleware(http.HandlerFunc(app.HandleGetNotifications)))
+	app.R.Post("/notifications/update/status", app.Middleware(http.HandlerFunc(app.HandleUpdateNotificationStatus)))
+
 	app.R.Get("/leaderboard", app.Middleware(http.HandlerFunc(app.GetLeaderboard)))
 
 	app.R.Get("/health", func(w http.ResponseWriter, r *http.Request) {
