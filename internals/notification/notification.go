@@ -48,13 +48,14 @@ func (ns *NotificationService) GetNotifications(user_id int) ([]Notification, er
 			Status:    notif.Status,
 			Id:        notif.Id,
 			CreatedAt: notif.CreatedAt,
-
 		}
 		if notif.EntityTypeId == 1 || notif.EntityTypeId == 2 {
 			notification.Entity = "transaction"
 			// get the txn:
 			var transaction Transaction
-			err := ns.DB.Raw("SELECT T.shares, T.price, T.transaction_time, P.player_name from transactions as T join players as P on P.player_id = T.player_id  where T.id = ?", notif.EntityId).Scan(&transaction).Error
+			err := ns.DB.Raw("SELECT T.shares, T.price, T.transaction_time, P.player_name from transactions as T join players as P on P.player_id = T.player_id  where T.id = ? order by T.transaction_time", notif.EntityId).Scan(&transaction).Error
+
+			// fmt.Printf("transactions %v", transaction)
 
 			if err != nil {
 				return nil, err
