@@ -312,6 +312,7 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 
 		// player_<player_id> should have these meta
 		// suppose this is a map
+
 		playerMeta, err := ts.KV.HGetAll(fmt.Sprintf("players_%s", player.PlayerID))
 		if err != nil || len(playerMeta) == 0 {
 			switch {
@@ -329,6 +330,7 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 
 			}
 		}
+
 		playerDetails[i].PlayerName = playerMeta["player_name"]
 		playerDetails[i].Team = playerMeta["team"]
 	}
