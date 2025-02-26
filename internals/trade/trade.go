@@ -109,6 +109,36 @@ func (ts *TradeService) getBasePrice(league_id string, player_id string) (float6
 	return price, nil
 }
 
+func (ts *TradeService) getCurAndBasePrice(league_id string, player_id string) (float64, float64, error) {
+
+	playerData, err := ts.getPlayerPriceList(league_id, player_id)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	CurTsAndPrice := strings.Split(playerData[len(playerData)-1], ",")
+	if len(CurTsAndPrice) != 2 {
+		return 0, 0, fmt.Errorf("invalid data format for price and timestamp")
+	}
+
+	cur_price, err := strconv.ParseFloat(CurTsAndPrice[1], 64)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	BaseTsAndPrice := strings.Split(playerData[0], ",")
+	if len(CurTsAndPrice) != 2 {
+		return 0, 0, fmt.Errorf("invalid data format for price and timestamp")
+	}
+
+	base_price, err := strconv.ParseFloat(BaseTsAndPrice[1], 64)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return cur_price, base_price, nil
+}
+
 func (ts *TradeService) Transaction(transactionType, playerId, leagueId string, userId int, transactionDetails TransactionDetails) error {
 
 	// Check leagues_status if active proceed else return error
@@ -283,57 +313,6 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 		}
 	}
 
-	for _, player := range players {
-		var p GetPlayerDetails
-		playerId := strings.Split(player, "_")[2]
-
-		price, timestamp, err := ts.getCurPrice(leagueId, playerId)
-
-		if err != nil {
-			return playerDetails, err
-		}
-
-		basePrice, err := ts.getBasePrice(leagueId, playerId)
-
-		if err != nil {
-			return playerDetails, err
-		}
-		p.CurPrice = price
-		p.LastChange = timestamp
-		p.PlayerID = playerId
-		p.BasePrice = basePrice
-		playerDetails = append(playerDetails, p)
-	}
-
-	// Get the player details from the players table
-	for i, player := range playerDetails {
-		// use cache for players details as well
-		// as of now required only player_name and team
-
-		// player_<player_id> should have these meta
-		// suppose this is a map
-
-		playerMeta, err := ts.KV.HGetAll(fmt.Sprintf("players_%s", player.PlayerID))
-		if err != nil || len(playerMeta) == 0 {
-			switch {
-			case err == redis.Nil || len(playerMeta) == 0:
-				{
-					p, err := cache.New(ts.DB, ts.KV).LoadPlayerMetaData(player.PlayerID)
-					if err != nil {
-						return nil, err
-					}
-					playerMeta["player_name"] = p.PlayerName
-					playerMeta["team"] = p.Team
-				}
-			default:
-				return nil, err
-
-			}
-		}
-
-		playerDetails[i].PlayerName = playerMeta["player_name"]
-		playerDetails[i].Team = playerMeta["team"]
-	}
 
 	portfolio, err := ts.KV.HGetAll("portfolio_" + strconv.Itoa(userId) + "_" + leagueId)
 
@@ -368,21 +347,62 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 		}
 	}
 
-	for i, player := range playerDetails {
-		if shares, ok := portfolio[player.PlayerID]; ok {
+	for _, player := range players {
+
+		var p GetPlayerDetails
+		playerId := strings.Split(player, "_")[2]
+
+		cur_price, base_price, err := ts.getCurAndBasePrice(leagueId, playerId)
+
+		if err != nil {
+			return playerDetails, err
+		}
+
+		// cant i get all the players data in a single go ...
+		// what if i store metadata of all players in a match/ league in a same map. only one Hget ...
+		playerMeta, err := ts.KV.HGetAll(fmt.Sprintf("players_%s", playerId))
+		if err != nil || len(playerMeta) == 0 {
+			switch {
+			case err == redis.Nil || len(playerMeta) == 0:
+				{
+					p, err := cache.New(ts.DB, ts.KV).LoadPlayerMetaData(playerId)
+					if err != nil {
+						return nil, err
+					}
+					playerMeta["player_name"] = p.PlayerName
+					playerMeta["team"] = p.Team
+				}
+			default:
+				return nil, err
+
+			}
+		}
+
+		var share int
+
+		if shares, ok := portfolio[playerId]; ok {
 			sharesInvested := strings.Split(shares, ",")
 			if len(sharesInvested) != 2 {
 				return playerDetails, fmt.Errorf("invalid data format for shares and invested")
 			}
 
-			playerDetails[i].Shares, err = strconv.Atoi(sharesInvested[0])
+			share, err = strconv.Atoi(sharesInvested[0])
 			if err != nil {
 				return playerDetails, err
 			}
 
 		} else {
-			playerDetails[i].Shares = 0
+			share = 0
 		}
+
+		p.CurPrice = cur_price
+		// p.LastChange = timestamp
+		p.PlayerID = playerId
+		p.BasePrice = base_price
+		p.PlayerName = playerMeta["player_name"]
+		p.Team = playerMeta["team"]
+		p.Shares = share
+		playerDetails = append(playerDetails, p)
 	}
 
 	return playerDetails, nil
