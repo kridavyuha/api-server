@@ -270,6 +270,7 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 		return playerDetails, err
 	}
 
+	//TODO: what if only some players were missing
 	if len(players) == 0 {
 		// load from table and cache it
 		err := cache.New(ts.DB, ts.KV).LoadPlayers(leagueId)
@@ -306,19 +307,31 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 
 	// Get the player details from the players table
 	for i, player := range playerDetails {
-		var playerData struct {
-			PlayerName string `json:"player_name"`
-			Team       string `json:"team"`
-			ProfilePic string `json:"profile_pic"`
-		}
+		// use cache for players details as well
+		// as of now required only player_name and team
 
-		err := ts.DB.Raw("SELECT player_name, team FROM players WHERE player_id = ?", player.PlayerID).Scan(&playerData).Error
-		if err != nil {
-			return playerDetails, err
-		}
+		// player_<player_id> should have these meta
+		// suppose this is a map
+		playerMeta, err := ts.KV.HGetAll(fmt.Sprintf("player_%s", player.PlayerID))
+		if err != nil || len(playerMeta) == 0 {
+			switch {
+			case err == redis.Nil || len(playerMeta) == 0:
+				{
+					p, err := cache.New(ts.DB, ts.KV).LoadPlayerMetaData(player.PlayerID)
+					if err != nil {
+						return nil, err
+					}
+					playerMeta["player_name"] = p.PlayerName
+					playerMeta["team"] = p.Team
+				}
+			default:
+				return nil, err
 
-		playerDetails[i].PlayerName = playerData.PlayerName
-		playerDetails[i].Team = playerData.Team
+			}
+		}
+		fmt.Println("outside :", playerMeta)
+		playerDetails[i].PlayerName = playerMeta["player_name"]
+		playerDetails[i].Team = playerMeta["team"]
 	}
 
 	portfolio, err := ts.KV.HGetAll("portfolio_" + strconv.Itoa(userId) + "_" + leagueId)

@@ -20,6 +20,22 @@ func New(db *gorm.DB, kv kvstore.KVStore) *CacheService {
 	}
 }
 
+func (c *CacheService) LoadPlayerMetaData(player_id string) (PlayerMetaData, error) {
+	var playerData PlayerMetaData
+	err := c.DB.Table("players").Select("player_id", "player_name", "team").Where("player_id = ?", player_id).Scan(&playerData).Error
+	if err != nil {
+		return playerData, err
+	}
+
+	key := "players_" + player_id
+
+	c.KV.HSet(key, "team", playerData.Team)
+	c.KV.HSet(key, "player_name", playerData.PlayerName)
+
+	return playerData, nil
+
+}
+
 func (c *CacheService) LoadPlayerData(league_id, player_id string) ([]string, error) {
 	// get player data from the database
 	tableName := "players_" + league_id
