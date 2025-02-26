@@ -18,3 +18,9 @@ type Portfolio struct {
 	PlayerName string  `json:"player_name"`
 	TeamName   string  `json:"team_name"`
 }
+
+type PlayerMetaData struct {
+	PlayerId   string `json:"player_id"`
+	PlayerName string `json:"player_name"`
+	Team       string `json:"team"`
+}

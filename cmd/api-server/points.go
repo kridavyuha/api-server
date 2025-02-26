@@ -191,7 +191,7 @@ func (app *App) HandleUpdateCorePrices(Leagues []leagues.League) {
 				return
 			}
 
-			fmt.Println("Players:", players)
+			// fmt.Println("Players:", players)
 			// Create Core details struct
 			coreDetails := CoreDetails{
 				CoreFactor: players,
