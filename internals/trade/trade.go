@@ -312,7 +312,7 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 
 		// player_<player_id> should have these meta
 		// suppose this is a map
-		playerMeta, err := ts.KV.HGetAll(fmt.Sprintf("player_%s", player.PlayerID))
+		playerMeta, err := ts.KV.HGetAll(fmt.Sprintf("players_%s", player.PlayerID))
 		if err != nil || len(playerMeta) == 0 {
 			switch {
 			case err == redis.Nil || len(playerMeta) == 0:
@@ -329,7 +329,6 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 
 			}
 		}
-		fmt.Println("outside :", playerMeta)
 		playerDetails[i].PlayerName = playerMeta["player_name"]
 		playerDetails[i].Team = playerMeta["team"]
 	}
