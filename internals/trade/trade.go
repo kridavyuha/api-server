@@ -313,6 +313,7 @@ func (ts *TradeService) GetPlayerDetails(leagueId string, userId int) ([]GetPlay
 		}
 	}
 
+
 	portfolio, err := ts.KV.HGetAll("portfolio_" + strconv.Itoa(userId) + "_" + leagueId)
 
 	if err != nil {
